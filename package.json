@@ -1,0 +1,25 @@
+{
+  "name": "lctrainer",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "server",
+    "extension"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w shared",
+    "build:server": "npm run build -w server",
+    "build:extension": "npm run build -w extension",
+    "build": "npm run build:shared && npm run build:server && npm run build:extension",
+    "dev:server": "npm run dev -w server",
+    "dev:extension": "npm run dev -w extension",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w extension"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "esbuild@0.21.5": true
+  }
+}

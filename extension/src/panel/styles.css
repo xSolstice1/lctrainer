@@ -1,0 +1,82 @@
+:host {
+  all: initial;
+}
+
+.lctrainer-panel {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  width: 320px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lctrainer-panel h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.lctrainer-panel button {
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #f5f5f5;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.lctrainer-panel button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.lctrainer-panel .hint-text {
+  white-space: pre-wrap;
+  min-height: 40px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.lctrainer-panel .error-text {
+  color: #b00020;
+}
+
+.lctrainer-panel .incomplete-notice {
+  color: #a06a00;
+  font-size: 11px;
+}
+
+.lctrainer-panel .model-select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #555;
+}
+
+.lctrainer-panel .model-select-label select {
+  font-size: 12px;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.lctrainer-panel .model-select-fallback {
+  font-size: 11px;
+  color: #888;
+}
+
+.lctrainer-panel .question-input {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  resize: vertical;
+}
