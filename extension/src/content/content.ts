@@ -6,11 +6,13 @@ import { onProblemSlugChange } from "./spaNavigation.js";
 import { mountPanel } from "../panel/mount.js";
 import { STORAGE_KEY_MODEL_ID } from "../lib/constants.js";
 
+const PING_INTERVAL_MS = 20_000;
+
 async function main() {
   const sessionId = crypto.randomUUID();
-  const port = connectToBackground();
 
   let currentProblem: ProblemMetadata | null = null;
+  let port: chrome.runtime.Port;
 
   const stored = await chrome.storage.local.get(STORAGE_KEY_MODEL_ID);
 
@@ -54,7 +56,7 @@ async function main() {
     },
   });
 
-  port.onMessage.addListener((message: BackgroundToContentMessage) => {
+  function handleMessage(message: BackgroundToContentMessage) {
     if (message.type === "guidanceChunk") {
       panel.onGuidanceChunk(message.chunk);
     } else if (message.type === "connectionError") {
@@ -64,11 +66,33 @@ async function main() {
     } else if (message.type === "serverInfoError") {
       panel.onServerInfoFailed(message.message);
     }
-  });
+    // "pong" needs no handling — receiving it just confirms the port is alive.
+  }
 
-  port.onDisconnect.addListener(() => {
-    panel.onConnectionError("Disconnected from background worker — reload the page to reconnect.");
-  });
+  function connect() {
+    port = connectToBackground();
+    port.onMessage.addListener(handleMessage);
+    port.onDisconnect.addListener(() => {
+      // The background service worker was terminated (MV3 idle timeout,
+      // extension reload, etc). Reconnect immediately rather than leaving
+      // the panel permanently disconnected.
+      connect();
+    });
+  }
+
+  connect();
+
+  // MV3 service workers are killed by Chrome after ~30s of port
+  // inactivity, even with the port still open — a periodic message resets
+  // that idle timer so the worker (and the guidance pipeline) survives
+  // things like alt-tabbing away from the page for a while.
+  setInterval(() => {
+    try {
+      port.postMessage({ type: "ping" });
+    } catch {
+      // Port was already disconnected; onDisconnect will trigger reconnect.
+    }
+  }, PING_INTERVAL_MS);
 
   async function loadProblem() {
     currentProblem = await extractProblemMetadata();

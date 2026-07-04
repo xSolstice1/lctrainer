@@ -20,6 +20,11 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onDisconnect.addListener(() => abortController.abort());
 
   port.onMessage.addListener(async (message: ContentToBackgroundMessage) => {
+    if (message.type === "ping") {
+      port.postMessage({ type: "pong" });
+      return;
+    }
+
     const serverUrl = await getServerUrl();
 
     if (message.type === "requestServerInfo") {
