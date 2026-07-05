@@ -1,0 +1,113 @@
+:root {
+  --bg: #ffffff;
+  --bg-elevated: #f5f6f8;
+  --border: #d8dbe0;
+  --text: #1a1a1a;
+  --text-muted: #666a70;
+  --accent: #3366cc;
+  --accent-text: #ffffff;
+  --danger: #c62828;
+  --success: #2e7d4f;
+}
+
+:root.theme-dark {
+  --bg: #1e1f22;
+  --bg-elevated: #26282c;
+  --border: #3a3d42;
+  --text: #e6e6e6;
+  --text-muted: #9a9da3;
+  --accent: #4d8dff;
+  --accent-text: #ffffff;
+  --danger: #ff6b6b;
+  --success: #4caf82;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.options-page {
+  max-width: 480px;
+  padding: 24px;
+}
+
+.options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.options-header h2 {
+  margin: 0;
+}
+
+.icon-button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.options-page label {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.options-page input[type="text"],
+.options-page select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.options-page button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.options-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.options-page .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.options-page .error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.options-page .success {
+  color: var(--success);
+}
+
+.options-footer {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+}

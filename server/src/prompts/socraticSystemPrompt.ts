@@ -12,6 +12,7 @@ export function buildSystemPrompt(problem: ProblemMetadata, allowFullSolution = 
 The user has explicitly asked for a full solution, so:
 - Give a complete, correct, working solution in the same language as their current code, with a brief explanation of the approach and its time/space complexity.
 - Prefer building on the user's existing code/approach where reasonable rather than replacing it outright.
+- The class/function name, parameter names, parameter order, and types in "Current code" are the exact LeetCode-generated signature — copy them verbatim, character-for-character. Never rename, abbreviate, or shorten any identifier from that signature (e.g. a parameter called \`restrictions\` must stay \`restrictions\`, not become \`rs\` or similar).
 - Keep the explanation focused — walk through the key idea, not a line-by-line narration.
 
 Problem tags: ${problem.tags.join(", ") || "none"}.`;

@@ -1,5 +1,5 @@
 import { useReducer } from "react";
-import type { BedrockModelInfo, GuidanceChunk, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 
 export interface PanelState {
   problem: ProblemMetadata | null;
@@ -10,7 +10,7 @@ export interface PanelState {
   questionText: string;
   allowFullSolution: boolean;
   serverConfig: ServerConfigInfo | null;
-  bedrockModels: BedrockModelInfo[];
+  modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>;
   selectedProviderId: string;
   selectedModelId: string;
   serverInfoError: string | null;
@@ -23,7 +23,7 @@ type PanelAction =
   | { type: "connectionError"; message: string }
   | { type: "questionTextChanged"; text: string }
   | { type: "allowFullSolutionChanged"; allowFullSolution: boolean }
-  | { type: "serverInfoLoaded"; config: ServerConfigInfo; models: BedrockModelInfo[] }
+  | { type: "serverInfoLoaded"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
   | { type: "serverInfoFailed"; message: string }
   | { type: "providerSelected"; providerId: string }
   | { type: "modelSelected"; modelId: string };
@@ -37,7 +37,7 @@ const initialState: PanelState = {
   questionText: "",
   allowFullSolution: false,
   serverConfig: null,
-  bedrockModels: [],
+  modelsByProvider: {},
   selectedProviderId: "",
   selectedModelId: "",
   serverInfoError: null,
@@ -71,7 +71,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     case "allowFullSolutionChanged":
       return { ...state, allowFullSolution: action.allowFullSolution };
     case "serverInfoLoaded":
-      return { ...state, serverConfig: action.config, bedrockModels: action.models, serverInfoError: null };
+      return { ...state, serverConfig: action.config, modelsByProvider: action.modelsByProvider, serverInfoError: null };
     case "serverInfoFailed":
       return { ...state, serverInfoError: action.message };
     case "providerSelected":

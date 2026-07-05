@@ -7,7 +7,7 @@ import {
   ListFoundationModelsCommand,
   ListInferenceProfilesCommand,
 } from "@aws-sdk/client-bedrock";
-import type { BedrockModelInfo, GuidanceChunk, GuidanceRequest } from "@lctrainer/shared";
+import type { ModelInfo, GuidanceChunk, GuidanceRequest } from "@lctrainer/shared";
 import type { LLMProvider } from "./LLMProvider.js";
 import { buildUserMessage } from "./openAiCompat.js";
 
@@ -53,7 +53,7 @@ export class BedrockProvider implements LLMProvider {
    * an inference profile ID/ARN in the same `modelId` field as a plain
    * model ID.
    */
-  async listClaudeModels(): Promise<BedrockModelInfo[]> {
+  async listClaudeModels(): Promise<ModelInfo[]> {
     const [foundationModels, inferenceProfiles] = await Promise.all([
       this.controlClient.send(new ListFoundationModelsCommand({})),
       this.controlClient.send(new ListInferenceProfilesCommand({})),

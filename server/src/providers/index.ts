@@ -48,4 +48,9 @@ export function defaultModelIdFor(config: AppConfig, providerId: LLMProviderId):
   }
 }
 
+/** Providers that expose a discoverable model list via GET /api/models/:providerId. */
+export function supportsModelList(providerId: LLMProviderId): boolean {
+  return providerId === "local" || providerId === "bedrock";
+}
+
 export type { LLMProvider } from "./LLMProvider.js";

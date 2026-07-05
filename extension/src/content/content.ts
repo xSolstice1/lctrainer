@@ -69,7 +69,7 @@ async function main() {
     } else if (message.type === "connectionError") {
       panel.onConnectionError(message.message);
     } else if (message.type === "serverInfo") {
-      panel.onServerInfoLoaded(message.config, message.models);
+      panel.onServerInfoLoaded(message.config, message.modelsByProvider);
     } else if (message.type === "serverInfoError") {
       panel.onServerInfoFailed(message.message);
     }

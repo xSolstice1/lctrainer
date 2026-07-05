@@ -1,12 +1,15 @@
 import { useEffect, useImperativeHandle, forwardRef } from "react";
-import type { BedrockModelInfo, GuidanceChunk, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
+import { useTheme } from "./useTheme.js";
+import { usePanelLayout } from "./usePanelLayout.js";
+import { HintRenderer } from "./HintRenderer.js";
 
 export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
   onConnectionError(message: string): void;
-  onServerInfoLoaded(config: ServerConfigInfo, models: BedrockModelInfo[]): void;
+  onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
 }
 
@@ -29,12 +32,14 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   ref
 ) {
   const [state, dispatch] = usePanelState();
+  const { theme, toggleTheme } = useTheme();
+  const { layout, updateLayout, startDrag, startResize } = usePanelLayout();
 
   useImperativeHandle(ref, () => ({
     onProblemLoaded: (problem) => dispatch({ type: "problemLoaded", problem }),
     onGuidanceChunk: (chunk) => dispatch({ type: "guidanceChunk", chunk }),
     onConnectionError: (message) => dispatch({ type: "connectionError", message }),
-    onServerInfoLoaded: (config, models) => dispatch({ type: "serverInfoLoaded", config, models }),
+    onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
   }));
 
@@ -77,83 +82,129 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const effectiveProviderId = state.selectedProviderId || state.serverConfig?.defaultProvider || "";
   const providers = state.serverConfig?.providers ?? [];
   const selectedProviderInfo = providers.find((p) => p.id === effectiveProviderId);
+  const availableModels = (effectiveProviderId && state.modelsByProvider[effectiveProviderId as LLMProviderId]) || [];
 
   return (
-    <div className="lctrainer-panel">
-      <h3>lctrainer</h3>
-      <div>{state.problem ? state.problem.title : "Loading problem..."}</div>
+    <div
+      className={`lctrainer-panel theme-${theme}`}
+      style={{
+        position: "fixed",
+        top: layout.top,
+        right: layout.right,
+        width: layout.width,
+        height: layout.height,
+        opacity: layout.opacity,
+        pointerEvents: "auto",
+      }}
+    >
+      <div className="panel-header" onPointerDown={startDrag}>
+        <span className="panel-title">lctrainer</span>
+        <div className="panel-header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            onClick={toggleTheme}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {theme === "dark" ? "☾" : "☀"}
+          </button>
+        </div>
+      </div>
 
-      {providers.length > 1 && (
-        <label className="model-select-label">
-          Provider
-          <select value={state.selectedProviderId} onChange={(e) => handleProviderChange(e.target.value)}>
-            <option value="">
-              Server default ({state.serverConfig?.defaultProvider})
-            </option>
-            {providers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.id}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      <div className="panel-body">
+        <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
 
-      {effectiveProviderId === "bedrock" && (
-        <label className="model-select-label">
-          Model
-          {state.bedrockModels.length > 0 ? (
-            <select value={state.selectedModelId} onChange={(e) => handleModelChange(e.target.value)}>
-              <option value="">Server default ({selectedProviderInfo?.defaultModelId})</option>
-              {state.bedrockModels.map((m) => (
-                <option key={m.modelId} value={m.modelId}>
-                  {m.modelName}
+        {providers.length > 1 && (
+          <label className="model-select-label">
+            Provider
+            <select value={state.selectedProviderId} onChange={(e) => handleProviderChange(e.target.value)}>
+              <option value="">Server default ({state.serverConfig?.defaultProvider})</option>
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id}
                 </option>
               ))}
             </select>
-          ) : (
-            <span className="model-select-fallback">
-              {state.serverInfoError ? "Model list unavailable" : "Loading models..."}
-            </span>
-          )}
-        </label>
-      )}
+          </label>
+        )}
 
-      {effectiveProviderId === "local" && selectedProviderInfo && (
-        <div className="model-select-label">
-          Model
-          <span className="model-select-fallback">{state.selectedModelId || selectedProviderInfo.defaultModelId}</span>
-        </div>
-      )}
+        {selectedProviderInfo?.supportsModelList && (
+          <label className="model-select-label">
+            Model
+            {availableModels.length > 0 ? (
+              <select value={state.selectedModelId} onChange={(e) => handleModelChange(e.target.value)}>
+                <option value="">Server default ({selectedProviderInfo.defaultModelId})</option>
+                {availableModels.map((m) => (
+                  <option key={m.modelId} value={m.modelId}>
+                    {m.modelName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="model-select-fallback">
+                {state.serverInfoError ? "Model list unavailable" : "Loading models..."}
+              </span>
+            )}
+          </label>
+        )}
 
-      <textarea
-        className="question-input"
-        placeholder="Ask a specific question (optional) — otherwise just get a general hint"
-        value={state.questionText}
-        onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
-        rows={2}
-      />
+        {selectedProviderInfo && !selectedProviderInfo.supportsModelList && (
+          <div className="model-select-label">
+            Model
+            <span className="model-select-fallback">{state.selectedModelId || selectedProviderInfo.defaultModelId}</span>
+          </div>
+        )}
 
-      <label className="full-solution-toggle">
-        <input
-          type="checkbox"
-          checked={state.allowFullSolution}
-          onChange={(e) => dispatch({ type: "allowFullSolutionChanged", allowFullSolution: e.target.checked })}
+        <textarea
+          className="question-input"
+          placeholder="Ask a specific question (optional) — otherwise just get a general hint"
+          value={state.questionText}
+          onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+          rows={2}
         />
-        Give full solution (skip Socratic hints)
-      </label>
 
-      <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
-        {buttonLabel}
-      </button>
+        <div className="panel-controls-row">
+          <label className="full-solution-toggle">
+            <input
+              type="checkbox"
+              checked={state.allowFullSolution}
+              onChange={(e) => dispatch({ type: "allowFullSolutionChanged", allowFullSolution: e.target.checked })}
+            />
+            Full solution
+          </label>
 
-      {state.codeCaptureIncomplete && (
-        <div className="incomplete-notice">
-          Code capture may be incomplete (some scrolled-out lines might be missing).
+          <label className="opacity-control" title="Panel opacity">
+            <span>Opacity</span>
+            <input
+              type="range"
+              min={0.2}
+              max={1}
+              step={0.05}
+              value={layout.opacity}
+              onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
+            />
+          </label>
         </div>
-      )}
-      {state.error && <div className="error-text">{state.error}</div>}
-      {state.hintText && <div className="hint-text">{state.hintText}</div>}
+
+        <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
+          {buttonLabel}
+        </button>
+
+        {state.codeCaptureIncomplete && (
+          <div className="incomplete-notice">
+            Code capture may be incomplete (some scrolled-out lines might be missing).
+          </div>
+        )}
+        {state.error && <div className="error-text">{state.error}</div>}
+        {state.hintText && <HintRenderer text={state.hintText} />}
+      </div>
+
+      <div className="panel-footer">
+        <span>Made by Vectr Labs</span>
+      </div>
+
+      <div className="resize-handle" onPointerDown={startResize} />
     </div>
   );
 });

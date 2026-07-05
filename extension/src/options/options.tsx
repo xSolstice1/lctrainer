@@ -1,21 +1,48 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { BedrockModelInfo, ServerConfigInfo } from "@lctrainer/shared";
+import type { ModelInfo, ServerConfigInfo } from "@lctrainer/shared";
 import {
   DEFAULT_SERVER_URL,
   STORAGE_KEY_MODEL_ID,
   STORAGE_KEY_PROVIDER,
   STORAGE_KEY_SERVER_URL,
+  STORAGE_KEY_THEME,
 } from "../lib/constants.js";
+import "./options.css";
 
 type ConnectionStatus = { state: "idle" } | { state: "testing" } | { state: "ok" } | { state: "error"; message: string };
 type ModelsStatus =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "loaded"; models: BedrockModelInfo[] }
+  | { state: "loaded"; models: ModelInfo[] }
   | { state: "error"; message: string };
 
+function useDocumentTheme() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEY_THEME).then((stored) => {
+      if (stored[STORAGE_KEY_THEME] === "light" || stored[STORAGE_KEY_THEME] === "dark") {
+        setTheme(stored[STORAGE_KEY_THEME]);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("theme-dark", theme === "dark");
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    chrome.storage.local.set({ [STORAGE_KEY_THEME]: next });
+  };
+
+  return { theme, toggleTheme };
+}
+
 function OptionsApp() {
+  const { theme, toggleTheme } = useDocumentTheme();
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
@@ -40,15 +67,16 @@ function OptionsApp() {
       setServerConfig(config);
 
       const effectiveProviderId = forProviderId || config.defaultProvider;
-      if (effectiveProviderId !== "bedrock") {
+      const providerInfo = config.providers.find((p) => p.id === effectiveProviderId);
+      if (!providerInfo?.supportsModelList) {
         setModels({ state: "idle" });
         return;
       }
 
       setModels({ state: "loading" });
-      const modelsRes = await fetch(`${url}/api/models/bedrock`);
+      const modelsRes = await fetch(`${url}/api/models/${effectiveProviderId}`);
       if (!modelsRes.ok) throw new Error(`${modelsRes.status} ${modelsRes.statusText}`);
-      const data: { models: BedrockModelInfo[] } = await modelsRes.json();
+      const data: { models: ModelInfo[] } = await modelsRes.json();
       setModels({ state: "loaded", models: data.models });
     } catch (err: any) {
       setModels({ state: "error", message: err?.message ?? "Failed to load models" });
@@ -92,26 +120,28 @@ function OptionsApp() {
   const selectedProviderInfo = serverConfig?.providers.find((p) => p.id === effectiveProviderId);
 
   return (
-    <div style={{ fontFamily: "sans-serif", maxWidth: 480, padding: 24 }}>
-      <h2>lctrainer settings</h2>
+    <div className="options-page">
+      <div className="options-header">
+        <h2>lctrainer settings</h2>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? "☾ Dark" : "☀ Light"}
+        </button>
+      </div>
+
       <label>
         Server URL
-        <input
-          type="text"
-          value={serverUrl}
-          onChange={(e) => setServerUrl(e.target.value)}
-          style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
-        />
+        <input type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} />
       </label>
 
       <div style={{ marginTop: 16 }}>
         <label>
           Provider
-          <select
-            value={providerId}
-            onChange={(e) => handleProviderChange(e.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
-          >
+          <select value={providerId} onChange={(e) => handleProviderChange(e.target.value)}>
             <option value="">Server default ({serverConfig?.defaultProvider ?? "..."})</option>
             {(serverConfig?.providers ?? []).map((p) => (
               <option key={p.id} value={p.id}>
@@ -126,15 +156,11 @@ function OptionsApp() {
         <label>
           Model
           {models.state === "loaded" ? (
-            <select
-              value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
-              style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
-            >
+            <select value={modelId} onChange={(e) => setModelId(e.target.value)}>
               <option value="">Server default ({selectedProviderInfo?.defaultModelId})</option>
               {models.models.map((m) => (
                 <option key={m.modelId} value={m.modelId}>
-                  {m.modelName} — {m.modelId}
+                  {m.modelName === m.modelId ? m.modelId : `${m.modelName} — ${m.modelId}`}
                 </option>
               ))}
             </select>
@@ -148,18 +174,19 @@ function OptionsApp() {
                   ? "Loading models from server..."
                   : "Leave blank for provider default, or type a model ID"
               }
-              style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
             />
           )}
         </label>
         {models.state === "error" && (
-          <p style={{ color: "red", fontSize: 12 }}>
-            Could not load Bedrock model list: {models.message}. You can still type a model ID manually.
+          <p className="error">
+            Could not load model list for {effectiveProviderId}: {models.message}. You can still type a model ID
+            manually.
           </p>
         )}
-        {effectiveProviderId && effectiveProviderId !== "bedrock" && (
-          <p style={{ fontSize: 12, color: "#666" }}>
-            Model list picker only applies to the Bedrock provider — for {effectiveProviderId}, type a model ID manually or leave blank for the server default.
+        {selectedProviderInfo && !selectedProviderInfo.supportsModelList && (
+          <p className="hint">
+            Model list picker isn't available for {effectiveProviderId} — type a model ID manually or leave blank
+            for the server default.
           </p>
         )}
       </div>
@@ -170,9 +197,11 @@ function OptionsApp() {
           {status.state === "testing" ? "Testing..." : "Test connection"}
         </button>
       </div>
-      {saved && <p>Saved.</p>}
-      {status.state === "ok" && <p style={{ color: "green" }}>Connected successfully.</p>}
-      {status.state === "error" && <p style={{ color: "red" }}>Connection failed: {status.message}</p>}
+      {saved && <p className="success">Saved.</p>}
+      {status.state === "ok" && <p className="success">Connected successfully.</p>}
+      {status.state === "error" && <p className="error">Connection failed: {status.message}</p>}
+
+      <div className="options-footer">Made by Vectr Labs</div>
     </div>
   );
 }

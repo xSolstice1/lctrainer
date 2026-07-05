@@ -13,7 +13,7 @@ const baseSchema = z.object({
   OPENROUTER_MODEL_ID: z.string().optional(),
 
   OLLAMA_BASE_URL: z.string().default("http://localhost:11434"),
-  OLLAMA_MODEL_ID: z.string().default("qwen2.5-coder:7b"),
+  OLLAMA_MODEL_ID: z.string().default("qwen2.5-coder:14b"),
 
   ALLOWED_EXTENSION_IDS: z.string().optional(),
   DEV_ALLOW_ANY_EXTENSION_ORIGIN: z

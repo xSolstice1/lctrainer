@@ -1,4 +1,4 @@
-import type { BedrockModelInfo, GuidanceChunk, GuidanceRequest, ServerConfigInfo } from "./guidance.js";
+import type { LLMProviderId, ModelInfo, GuidanceChunk, GuidanceRequest, ServerConfigInfo } from "./guidance.js";
 
 /** Messages sent down the chrome.runtime.Port from content script to background worker. */
 export type ContentToBackgroundMessage =
@@ -10,7 +10,7 @@ export type ContentToBackgroundMessage =
 export type BackgroundToContentMessage =
   | { type: "guidanceChunk"; chunk: GuidanceChunk }
   | { type: "connectionError"; message: string }
-  | { type: "serverInfo"; config: ServerConfigInfo; models: BedrockModelInfo[] }
+  | { type: "serverInfo"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
   | { type: "serverInfoError"; message: string }
   | { type: "pong" };
 

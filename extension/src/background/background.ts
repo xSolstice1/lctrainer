@@ -1,4 +1,4 @@
-import type { BedrockModelInfo, ContentToBackgroundMessage, ServerConfigInfo } from "@lctrainer/shared";
+import type { ContentToBackgroundMessage, LLMProviderId, ModelInfo, ServerConfigInfo } from "@lctrainer/shared";
 import { PORT_NAME } from "../lib/messaging.js";
 import {
   DEFAULT_SERVER_URL,
@@ -43,16 +43,20 @@ chrome.runtime.onConnect.addListener((port) => {
         if (!configRes.ok) throw new Error(`${configRes.status} ${configRes.statusText}`);
         const config: ServerConfigInfo = await configRes.json();
 
-        let models: BedrockModelInfo[] = [];
-        if (config.providers.some((p) => p.id === "bedrock")) {
-          const modelsRes = await fetch(`${serverUrl}/api/models/bedrock`);
-          if (modelsRes.ok) {
-            const data: { models: BedrockModelInfo[] } = await modelsRes.json();
-            models = data.models;
-          }
-        }
+        const modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> = {};
+        await Promise.all(
+          config.providers
+            .filter((p) => p.supportsModelList)
+            .map(async (p) => {
+              const modelsRes = await fetch(`${serverUrl}/api/models/${p.id}`);
+              if (modelsRes.ok) {
+                const data: { models: ModelInfo[] } = await modelsRes.json();
+                modelsByProvider[p.id] = data.models;
+              }
+            })
+        );
 
-        port.postMessage({ type: "serverInfo", config, models });
+        port.postMessage({ type: "serverInfo", config, modelsByProvider });
       } catch (err: any) {
         port.postMessage({ type: "serverInfoError", message: err?.message ?? "Failed to reach server" });
       }

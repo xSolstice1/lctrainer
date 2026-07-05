@@ -21,7 +21,7 @@ export type GuidanceChunk =
   | { type: "done" }
   | { type: "error"; message: string };
 
-export interface BedrockModelInfo {
+export interface ModelInfo {
   modelId: string;
   modelName: string;
 }
@@ -29,6 +29,8 @@ export interface BedrockModelInfo {
 export interface ProviderInfo {
   id: LLMProviderId;
   defaultModelId: string;
+  /** Whether GET /api/models/:providerId returns a discoverable model list for this provider. */
+  supportsModelList: boolean;
 }
 
 export interface ServerConfigInfo {

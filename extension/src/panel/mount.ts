@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { createElement, createRef } from "react";
-import type { BedrockModelInfo, GuidanceChunk, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { PanelApp, type PanelHandle } from "./PanelApp.js";
 import panelStyles from "./styles.css?inline";
 
@@ -8,7 +8,7 @@ export interface MountedPanel {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
   onConnectionError(message: string): void;
-  onServerInfoLoaded(config: ServerConfigInfo, models: BedrockModelInfo[]): void;
+  onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
 }
 
@@ -26,13 +26,22 @@ interface MountPanelOptions {
   onRequestServerInfo: () => void;
 }
 
-/** Mounts the panel into a shadow-DOM-isolated container so LeetCode's own CSS can't collide with it in either direction. */
+/**
+ * Mounts the panel into a shadow-DOM-isolated container so LeetCode's own
+ * CSS can't collide with it in either direction. The host spans the full
+ * viewport with pointer-events disabled so it doesn't block clicks on the
+ * page underneath; only the panel itself (positioned inside the shadow
+ * root) re-enables pointer events.
+ */
 export function mountPanel(options: MountPanelOptions): MountedPanel {
   const host = document.createElement("div");
   host.id = "lctrainer-panel-host";
   host.style.position = "fixed";
-  host.style.top = "80px";
-  host.style.right = "16px";
+  host.style.top = "0";
+  host.style.left = "0";
+  host.style.width = "100vw";
+  host.style.height = "100vh";
+  host.style.pointerEvents = "none";
   host.style.zIndex = "2147483647";
   document.body.appendChild(host);
 
@@ -62,7 +71,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onProblemLoaded: (problem) => ref.current?.onProblemLoaded(problem),
     onGuidanceChunk: (chunk) => ref.current?.onGuidanceChunk(chunk),
     onConnectionError: (message) => ref.current?.onConnectionError(message),
-    onServerInfoLoaded: (config, models) => ref.current?.onServerInfoLoaded(config, models),
+    onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
   };
 }
