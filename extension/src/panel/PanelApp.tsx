@@ -33,7 +33,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 ) {
   const [state, dispatch] = usePanelState();
   const { theme, toggleTheme } = useTheme();
-  const { layout, updateLayout, startDrag, startResize } = usePanelLayout();
+  const { layout, updateLayout, toggleMinimized, startDrag, startResize } = usePanelLayout();
 
   useImperativeHandle(ref, () => ({
     onProblemLoaded: (problem) => dispatch({ type: "problemLoaded", problem }),
@@ -86,19 +86,19 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 
   return (
     <div
-      className={`lctrainer-panel theme-${theme}`}
+      className={`lctrainer-panel theme-${theme}${layout.minimized ? " minimized" : ""}`}
       style={{
         position: "fixed",
         top: layout.top,
-        right: layout.right,
+        left: layout.left,
         width: layout.width,
-        height: layout.height,
+        height: layout.minimized ? undefined : layout.height,
         opacity: layout.opacity,
         pointerEvents: "auto",
       }}
     >
       <div className="panel-header" onPointerDown={startDrag}>
-        <span className="panel-title">lctrainer</span>
+        <span className="panel-title">Leetcode Trainer</span>
         <div className="panel-header-actions">
           <button
             type="button"
@@ -109,102 +109,130 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           >
             {theme === "dark" ? "☾" : "☀"}
           </button>
+          <button
+            type="button"
+            className="icon-button"
+            title={layout.minimized ? "Expand" : "Minimize"}
+            onClick={toggleMinimized}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {layout.minimized ? "▢" : "—"}
+          </button>
         </div>
       </div>
 
-      <div className="panel-body">
-        <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+      {!layout.minimized && (
+        <>
+          <div className="panel-controls">
+            <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
 
-        {providers.length > 1 && (
-          <label className="model-select-label">
-            Provider
-            <select value={state.selectedProviderId} onChange={(e) => handleProviderChange(e.target.value)}>
-              <option value="">Server default ({state.serverConfig?.defaultProvider})</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.id}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        {selectedProviderInfo?.supportsModelList && (
-          <label className="model-select-label">
-            Model
-            {availableModels.length > 0 ? (
-              <select value={state.selectedModelId} onChange={(e) => handleModelChange(e.target.value)}>
-                <option value="">Server default ({selectedProviderInfo.defaultModelId})</option>
-                {availableModels.map((m) => (
-                  <option key={m.modelId} value={m.modelId}>
-                    {m.modelName}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="model-select-fallback">
-                {state.serverInfoError ? "Model list unavailable" : "Loading models..."}
-              </span>
+            {providers.length > 1 && (
+              <label className="model-select-label">
+                Provider
+                <select value={state.selectedProviderId} onChange={(e) => handleProviderChange(e.target.value)}>
+                  <option value="">Server default ({state.serverConfig?.defaultProvider})</option>
+                  {providers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
-          </label>
-        )}
 
-        {selectedProviderInfo && !selectedProviderInfo.supportsModelList && (
-          <div className="model-select-label">
-            Model
-            <span className="model-select-fallback">{state.selectedModelId || selectedProviderInfo.defaultModelId}</span>
-          </div>
-        )}
+            {selectedProviderInfo?.supportsModelList && (
+              <label className="model-select-label">
+                Model
+                {availableModels.length > 0 ? (
+                  <select value={state.selectedModelId} onChange={(e) => handleModelChange(e.target.value)}>
+                    <option value="">Server default ({selectedProviderInfo.defaultModelId})</option>
+                    {availableModels.map((m) => (
+                      <option key={m.modelId} value={m.modelId}>
+                        {m.modelName}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="model-select-fallback">
+                    {state.serverInfoError ? "Model list unavailable" : "Loading models..."}
+                  </span>
+                )}
+              </label>
+            )}
 
-        <textarea
-          className="question-input"
-          placeholder="Ask a specific question (optional) — otherwise just get a general hint"
-          value={state.questionText}
-          onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
-          rows={2}
-        />
+            {selectedProviderInfo && !selectedProviderInfo.supportsModelList && (
+              <div className="model-select-label">
+                Model
+                <span className="model-select-fallback">
+                  {state.selectedModelId || selectedProviderInfo.defaultModelId}
+                </span>
+              </div>
+            )}
 
-        <div className="panel-controls-row">
-          <label className="full-solution-toggle">
-            <input
-              type="checkbox"
-              checked={state.allowFullSolution}
-              onChange={(e) => dispatch({ type: "allowFullSolutionChanged", allowFullSolution: e.target.checked })}
+            <textarea
+              className="question-input"
+              placeholder="Ask a specific question (optional) — otherwise just get a general hint"
+              value={state.questionText}
+              onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+              rows={2}
             />
-            Full solution
-          </label>
 
-          <label className="opacity-control" title="Panel opacity">
-            <span>Opacity</span>
-            <input
-              type="range"
-              min={0.2}
-              max={1}
-              step={0.05}
-              value={layout.opacity}
-              onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
-            />
-          </label>
-        </div>
+            <div className="panel-controls-row">
+              <label className="full-solution-toggle">
+                <input
+                  type="checkbox"
+                  checked={state.allowFullSolution}
+                  onChange={(e) =>
+                    dispatch({ type: "allowFullSolutionChanged", allowFullSolution: e.target.checked })
+                  }
+                />
+                Full solution
+              </label>
 
-        <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
-          {buttonLabel}
-        </button>
+              <label className="opacity-control" title="Panel opacity">
+                <span>Opacity</span>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={1}
+                  step={0.05}
+                  value={layout.opacity}
+                  onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
+                />
+              </label>
+            </div>
 
-        {state.codeCaptureIncomplete && (
-          <div className="incomplete-notice">
-            Code capture may be incomplete (some scrolled-out lines might be missing).
+            <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
+              {buttonLabel}
+            </button>
           </div>
-        )}
-        {state.error && <div className="error-text">{state.error}</div>}
-        {state.hintText && <HintRenderer text={state.hintText} />}
-      </div>
 
-      <div className="panel-footer">
-        <span>Made by Vectr Labs</span>
-      </div>
+          <div className="panel-output">
+            {state.codeCaptureIncomplete && (
+              <div className="incomplete-notice">
+                Code capture may be incomplete (some scrolled-out lines might be missing).
+              </div>
+            )}
+            {state.error && <div className="error-text">{state.error}</div>}
+            {state.reasoningText && (
+              <details className="reasoning-block">
+                <summary>{state.hintText ? "Thinking" : "Thinking…"}</summary>
+                <div className="reasoning-text">{state.reasoningText}</div>
+              </details>
+            )}
+            {state.hintText && <HintRenderer text={state.hintText} />}
+          </div>
 
-      <div className="resize-handle" onPointerDown={startResize} />
+          <div className="panel-footer">
+            <span>Made by Vectr Labs</span>
+          </div>
+
+          <div className="resize-handle resize-handle-nw" onPointerDown={(e) => startResize(e, "nw")} />
+          <div className="resize-handle resize-handle-ne" onPointerDown={(e) => startResize(e, "ne")} />
+          <div className="resize-handle resize-handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
+          <div className="resize-handle resize-handle-se" onPointerDown={(e) => startResize(e, "se")} />
+        </>
+      )}
     </div>
   );
 });

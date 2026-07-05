@@ -18,6 +18,8 @@ export interface GuidanceRequest {
 
 export type GuidanceChunk =
   | { type: "token"; delta: string }
+  /** A reasoning/thinking-trace token, emitted separately from the final answer by reasoning models (e.g. DeepSeek-R1). */
+  | { type: "reasoning"; delta: string }
   | { type: "done" }
   | { type: "error"; message: string };
 

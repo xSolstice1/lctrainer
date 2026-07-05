@@ -30,6 +30,11 @@
   transition: opacity 0.1s ease;
 }
 
+.lctrainer-panel.minimized {
+  min-height: 0;
+  height: auto !important;
+}
+
 .lctrainer-panel.theme-light {
   --bg: #ffffff;
   --bg-elevated: #f5f6f8;
@@ -77,13 +82,26 @@
   line-height: 1.4;
 }
 
-.panel-body {
-  flex: 1;
-  overflow-y: auto;
+.panel-controls {
+  flex-shrink: 0;
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.panel-output {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-output:not(:empty) {
+  padding-bottom: 10px;
 }
 
 .problem-title {
@@ -106,17 +124,108 @@
 }
 
 .hint-text {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.hint-text p {
-  margin: 0 0 8px 0;
-  line-height: 1.45;
+.reasoning-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  font-size: 12px;
 }
 
-.hint-text p:last-child {
+.reasoning-block summary {
+  cursor: pointer;
+  padding: 6px 8px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.reasoning-text {
+  padding: 0 8px 8px 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.hint-md {
+  line-height: 1.5;
+}
+
+.hint-md > *:first-child {
+  margin-top: 0;
+}
+
+.hint-md > *:last-child {
   margin-bottom: 0;
+}
+
+.hint-md p {
+  margin: 0 0 8px 0;
+}
+
+.hint-md h1,
+.hint-md h2,
+.hint-md h3,
+.hint-md h4 {
+  margin: 12px 0 6px 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hint-md h1 {
+  font-size: 16px;
+}
+.hint-md h2 {
+  font-size: 15px;
+}
+.hint-md h3 {
+  font-size: 14px;
+}
+.hint-md h4 {
+  font-size: 13px;
+}
+
+.hint-md ul,
+.hint-md ol {
+  margin: 0 0 8px 0;
+  padding-left: 20px;
+}
+
+.hint-md li {
+  margin-bottom: 3px;
+}
+
+.hint-md strong {
+  font-weight: 600;
+}
+
+.hint-md a {
+  color: var(--accent);
+}
+
+.hint-md blockquote {
+  margin: 0 0 8px 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  color: var(--text-muted);
+}
+
+.hint-md code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.hint-md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
 }
 
 .error-text {
@@ -203,14 +312,36 @@
 
 .resize-handle {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
+  z-index: 1;
+}
+
+.resize-handle-nw {
+  top: 0;
+  left: 0;
   cursor: nwse-resize;
 }
 
-.resize-handle::after {
+.resize-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.resize-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.resize-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+
+.resize-handle-se::after {
   content: "";
   position: absolute;
   right: 3px;

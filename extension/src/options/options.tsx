@@ -122,7 +122,7 @@ function OptionsApp() {
   return (
     <div className="options-page">
       <div className="options-header">
-        <h2>lctrainer settings</h2>
+        <h2>Leetcode Trainer settings</h2>
         <button
           type="button"
           className="icon-button"

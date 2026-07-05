@@ -89,9 +89,16 @@ export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams):
 
         try {
           const parsed = JSON.parse(data);
-          const delta = parsed.choices?.[0]?.delta?.content;
-          if (delta) {
-            yield { type: "token", delta };
+          const delta = parsed.choices?.[0]?.delta;
+          // Reasoning models (e.g. DeepSeek-R1 via Ollama) stream their
+          // chain-of-thought in a separate `reasoning` field, not `content` —
+          // surface it distinctly rather than silently dropping it.
+          const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+          if (reasoning) {
+            yield { type: "reasoning", delta: reasoning };
+          }
+          if (delta?.content) {
+            yield { type: "token", delta: delta.content };
           }
         } catch {
           // ignore malformed keep-alive lines

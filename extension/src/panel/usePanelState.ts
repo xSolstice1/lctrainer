@@ -4,6 +4,7 @@ import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerCo
 export interface PanelState {
   problem: ProblemMetadata | null;
   hintText: string;
+  reasoningText: string;
   isStreaming: boolean;
   error: string | null;
   codeCaptureIncomplete: boolean;
@@ -31,6 +32,7 @@ type PanelAction =
 const initialState: PanelState = {
   problem: null,
   hintText: "",
+  reasoningText: "",
   isStreaming: false,
   error: null,
   codeCaptureIncomplete: false,
@@ -51,6 +53,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return {
         ...state,
         hintText: "",
+        reasoningText: "",
         isStreaming: true,
         error: null,
         codeCaptureIncomplete: action.codeCaptureIncomplete,
@@ -58,6 +61,9 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     case "guidanceChunk":
       if (action.chunk.type === "token") {
         return { ...state, hintText: state.hintText + action.chunk.delta };
+      }
+      if (action.chunk.type === "reasoning") {
+        return { ...state, reasoningText: state.reasoningText + action.chunk.delta };
       }
       if (action.chunk.type === "done") {
         return { ...state, isStreaming: false };

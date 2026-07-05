@@ -2,7 +2,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "lctrainer — Live LeetCode AI Trainer",
+  name: "Leetcode Trainer — Live AI Trainer",
   version: "0.1.0",
   description: "Socratic AI hints for your live LeetCode code, powered by a local model (Ollama), AWS Bedrock, or OpenRouter.",
   permissions: ["storage"],
