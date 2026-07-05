@@ -1,8 +1,9 @@
 import { z } from "zod";
+import type { LLMProviderId } from "@lctrainer/shared";
 
 const baseSchema = z.object({
   PORT: z.coerce.number().default(3001),
-  LLM_PROVIDER: z.enum(["bedrock", "openrouter"]),
+  LLM_PROVIDER: z.enum(["local", "bedrock", "openrouter"]).optional(),
 
   AWS_REGION: z.string().optional(),
   AWS_PROFILE: z.string().optional(),
@@ -10,6 +11,9 @@ const baseSchema = z.object({
 
   OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_MODEL_ID: z.string().optional(),
+
+  OLLAMA_BASE_URL: z.string().default("http://localhost:11434"),
+  OLLAMA_MODEL_ID: z.string().default("qwen2.5-coder:7b"),
 
   ALLOWED_EXTENSION_IDS: z.string().optional(),
   DEV_ALLOW_ANY_EXTENSION_ORIGIN: z
@@ -20,7 +24,12 @@ const baseSchema = z.object({
 
 export interface AppConfig {
   port: number;
-  llmProvider: "bedrock" | "openrouter";
+  defaultProvider: LLMProviderId;
+  availableProviders: LLMProviderId[];
+  local: {
+    baseUrl: string;
+    modelId: string;
+  };
   aws: {
     region: string;
     profile?: string;
@@ -37,27 +46,30 @@ export interface AppConfig {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = baseSchema.parse(env);
 
-  if (parsed.LLM_PROVIDER === "bedrock") {
-    if (!parsed.AWS_REGION) {
-      throw new Error("AWS_REGION is required when LLM_PROVIDER=bedrock");
-    }
-    if (!parsed.BEDROCK_MODEL_ID) {
-      throw new Error("BEDROCK_MODEL_ID is required when LLM_PROVIDER=bedrock");
-    }
-  }
+  const bedrockConfigured = Boolean(parsed.AWS_REGION && parsed.BEDROCK_MODEL_ID);
+  const openRouterConfigured = Boolean(parsed.OPENROUTER_API_KEY && parsed.OPENROUTER_MODEL_ID);
 
-  if (parsed.LLM_PROVIDER === "openrouter") {
-    if (!parsed.OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter");
-    }
-    if (!parsed.OPENROUTER_MODEL_ID) {
-      throw new Error("OPENROUTER_MODEL_ID is required when LLM_PROVIDER=openrouter");
-    }
+  const availableProviders: LLMProviderId[] = ["local"];
+  if (bedrockConfigured) availableProviders.push("bedrock");
+  if (openRouterConfigured) availableProviders.push("openrouter");
+
+  const defaultProvider: LLMProviderId = parsed.LLM_PROVIDER ?? (bedrockConfigured ? "bedrock" : "local");
+
+  if (defaultProvider === "bedrock" && !bedrockConfigured) {
+    throw new Error("AWS_REGION and BEDROCK_MODEL_ID are required when LLM_PROVIDER=bedrock");
+  }
+  if (defaultProvider === "openrouter" && !openRouterConfigured) {
+    throw new Error("OPENROUTER_API_KEY and OPENROUTER_MODEL_ID are required when LLM_PROVIDER=openrouter");
   }
 
   return {
     port: parsed.PORT,
-    llmProvider: parsed.LLM_PROVIDER,
+    defaultProvider,
+    availableProviders,
+    local: {
+      baseUrl: parsed.OLLAMA_BASE_URL,
+      modelId: parsed.OLLAMA_MODEL_ID,
+    },
     aws: {
       region: parsed.AWS_REGION ?? "",
       profile: parsed.AWS_PROFILE,

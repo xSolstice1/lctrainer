@@ -1,12 +1,18 @@
 import type { ProblemMetadata } from "./problem.js";
 import type { CodeSnapshot } from "./codeSnapshot.js";
 
+export type LLMProviderId = "local" | "bedrock" | "openrouter";
+
 export interface GuidanceRequest {
   sessionId: string;
   problem: ProblemMetadata;
   code: CodeSnapshot;
   userQuestion?: string;
-  /** Overrides the server's default BEDROCK_MODEL_ID / OPENROUTER_MODEL_ID for this request, if set. */
+  /** When true, the model is allowed to give a full working solution instead of a Socratic hint. Off by default. */
+  allowFullSolution?: boolean;
+  /** Overrides the server's default provider for this request, if set. */
+  provider?: LLMProviderId;
+  /** Overrides the selected provider's default model ID for this request, if set. */
   modelId?: string;
 }
 
@@ -20,7 +26,12 @@ export interface BedrockModelInfo {
   modelName: string;
 }
 
-export interface ServerConfigInfo {
-  llmProvider: "bedrock" | "openrouter";
+export interface ProviderInfo {
+  id: LLMProviderId;
   defaultModelId: string;
+}
+
+export interface ServerConfigInfo {
+  defaultProvider: LLMProviderId;
+  providers: ProviderInfo[];
 }

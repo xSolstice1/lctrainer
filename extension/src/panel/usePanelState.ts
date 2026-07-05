@@ -8,8 +8,10 @@ export interface PanelState {
   error: string | null;
   codeCaptureIncomplete: boolean;
   questionText: string;
+  allowFullSolution: boolean;
   serverConfig: ServerConfigInfo | null;
   bedrockModels: BedrockModelInfo[];
+  selectedProviderId: string;
   selectedModelId: string;
   serverInfoError: string | null;
 }
@@ -20,8 +22,10 @@ type PanelAction =
   | { type: "guidanceChunk"; chunk: GuidanceChunk }
   | { type: "connectionError"; message: string }
   | { type: "questionTextChanged"; text: string }
+  | { type: "allowFullSolutionChanged"; allowFullSolution: boolean }
   | { type: "serverInfoLoaded"; config: ServerConfigInfo; models: BedrockModelInfo[] }
   | { type: "serverInfoFailed"; message: string }
+  | { type: "providerSelected"; providerId: string }
   | { type: "modelSelected"; modelId: string };
 
 const initialState: PanelState = {
@@ -31,8 +35,10 @@ const initialState: PanelState = {
   error: null,
   codeCaptureIncomplete: false,
   questionText: "",
+  allowFullSolution: false,
   serverConfig: null,
   bedrockModels: [],
+  selectedProviderId: "",
   selectedModelId: "",
   serverInfoError: null,
 };
@@ -62,10 +68,14 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, isStreaming: false, error: action.message };
     case "questionTextChanged":
       return { ...state, questionText: action.text };
+    case "allowFullSolutionChanged":
+      return { ...state, allowFullSolution: action.allowFullSolution };
     case "serverInfoLoaded":
       return { ...state, serverConfig: action.config, bedrockModels: action.models, serverInfoError: null };
     case "serverInfoFailed":
       return { ...state, serverInfoError: action.message };
+    case "providerSelected":
+      return { ...state, selectedProviderId: action.providerId, selectedModelId: "" };
     case "modelSelected":
       return { ...state, selectedModelId: action.modelId };
     default:

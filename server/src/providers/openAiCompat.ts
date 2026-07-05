@@ -1,0 +1,105 @@
+import type { GuidanceChunk, GuidanceRequest } from "@lctrainer/shared";
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function buildUserMessage(request: GuidanceRequest): string {
+  const statement = stripHtml(request.problem.statementHtml);
+  return [
+    `Problem: ${request.problem.title} (${request.problem.difficulty})`,
+    statement ? `Problem statement:\n${statement}` : null,
+    `Current code (${request.code.language}):\n\`\`\`${request.code.language}\n${request.code.code}\n\`\`\``,
+    request.userQuestion ? `User question: ${request.userQuestion}` : "The user wants a hint on their current approach.",
+  ]
+    .filter((part): part is string => part !== null)
+    .join("\n\n");
+}
+
+export interface OpenAiCompatStreamParams {
+  url: string;
+  headers: Record<string, string>;
+  modelId: string;
+  systemPrompt: string;
+  userMessage: string;
+  maxTokens?: number;
+  signal?: AbortSignal;
+  requestFailedPrefix: string;
+  streamErrorPrefix: string;
+}
+
+/** Streams chat completions from any OpenAI-compatible `/chat/completions` SSE endpoint (OpenRouter, Ollama, llama.cpp server, ...). */
+export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams): AsyncGenerator<GuidanceChunk> {
+  let response: Response;
+  try {
+    response = await fetch(params.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...params.headers },
+      body: JSON.stringify({
+        model: params.modelId,
+        stream: true,
+        max_tokens: params.maxTokens ?? 512,
+        messages: [
+          { role: "system", content: params.systemPrompt },
+          { role: "user", content: params.userMessage },
+        ],
+      }),
+      signal: params.signal,
+    });
+  } catch (err: any) {
+    yield { type: "error", message: err?.message ?? params.requestFailedPrefix };
+    return;
+  }
+
+  if (!response.ok || !response.body) {
+    yield { type: "error", message: `${params.requestFailedPrefix}: ${response.status} ${response.statusText}` };
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let newlineIndex: number;
+      while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newlineIndex).trim();
+        buffer = buffer.slice(newlineIndex + 1);
+        if (!line.startsWith("data:")) continue;
+
+        const data = line.slice("data:".length).trim();
+        if (data === "[DONE]") {
+          yield { type: "done" };
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            yield { type: "token", delta };
+          }
+        } catch {
+          // ignore malformed keep-alive lines
+        }
+      }
+    }
+    yield { type: "done" };
+  } catch (err: any) {
+    yield { type: "error", message: err?.message ?? params.streamErrorPrefix };
+  }
+}

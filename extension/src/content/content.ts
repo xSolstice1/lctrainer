@@ -4,7 +4,7 @@ import { extractProblemMetadata } from "./extractors/problem.js";
 import { requestCurrentCode } from "./extractors/code.js";
 import { onProblemSlugChange } from "./spaNavigation.js";
 import { mountPanel } from "../panel/mount.js";
-import { STORAGE_KEY_MODEL_ID } from "../lib/constants.js";
+import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
 
 const PING_INTERVAL_MS = 20_000;
 
@@ -14,12 +14,13 @@ async function main() {
   let currentProblem: ProblemMetadata | null = null;
   let port: chrome.runtime.Port;
 
-  const stored = await chrome.storage.local.get(STORAGE_KEY_MODEL_ID);
+  const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
 
   const panel = mountPanel({
+    initialProviderId: stored[STORAGE_KEY_PROVIDER] ?? "",
     initialModelId: stored[STORAGE_KEY_MODEL_ID] ?? "",
 
-    onRequestHint: async ({ userQuestion, modelId }) => {
+    onRequestHint: async ({ userQuestion, allowFullSolution, provider, modelId }) => {
       const code = await requestCurrentCode().catch(() => ({
         code: "",
         language: "unknown",
@@ -39,12 +40,18 @@ async function main() {
               possiblyIncomplete: code.possiblyIncomplete,
             },
             userQuestion,
+            allowFullSolution,
+            provider,
             modelId,
           },
         });
       }
 
       return { codeCaptureIncomplete: code.possiblyIncomplete };
+    },
+
+    onProviderChange: (providerId) => {
+      chrome.storage.local.set({ [STORAGE_KEY_PROVIDER]: providerId });
     },
 
     onModelChange: (modelId) => {

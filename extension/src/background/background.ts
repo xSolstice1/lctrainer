@@ -1,11 +1,21 @@
 import type { BedrockModelInfo, ContentToBackgroundMessage, ServerConfigInfo } from "@lctrainer/shared";
 import { PORT_NAME } from "../lib/messaging.js";
-import { DEFAULT_SERVER_URL, STORAGE_KEY_MODEL_ID, STORAGE_KEY_SERVER_URL } from "../lib/constants.js";
+import {
+  DEFAULT_SERVER_URL,
+  STORAGE_KEY_MODEL_ID,
+  STORAGE_KEY_PROVIDER,
+  STORAGE_KEY_SERVER_URL,
+} from "../lib/constants.js";
 import { parseSseStream } from "./sseClient.js";
 
 async function getServerUrl(): Promise<string> {
   const stored = await chrome.storage.local.get(STORAGE_KEY_SERVER_URL);
   return stored[STORAGE_KEY_SERVER_URL] ?? DEFAULT_SERVER_URL;
+}
+
+async function getProviderId(): Promise<string | undefined> {
+  const stored = await chrome.storage.local.get(STORAGE_KEY_PROVIDER);
+  return stored[STORAGE_KEY_PROVIDER] || undefined;
 }
 
 async function getModelId(): Promise<string | undefined> {
@@ -34,7 +44,7 @@ chrome.runtime.onConnect.addListener((port) => {
         const config: ServerConfigInfo = await configRes.json();
 
         let models: BedrockModelInfo[] = [];
-        if (config.llmProvider === "bedrock") {
+        if (config.providers.some((p) => p.id === "bedrock")) {
           const modelsRes = await fetch(`${serverUrl}/api/models/bedrock`);
           if (modelsRes.ok) {
             const data: { models: BedrockModelInfo[] } = await modelsRes.json();
@@ -51,6 +61,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     if (message.type !== "requestGuidance") return;
 
+    const providerId = await getProviderId();
     const modelId = await getModelId();
 
     let response: Response;
@@ -58,7 +69,11 @@ chrome.runtime.onConnect.addListener((port) => {
       response = await fetch(`${serverUrl}/api/guidance/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...message.request, modelId: message.request.modelId ?? modelId }),
+        body: JSON.stringify({
+          ...message.request,
+          provider: message.request.provider ?? providerId,
+          modelId: message.request.modelId ?? modelId,
+        }),
         signal: abortController.signal,
       });
     } catch (err: any) {

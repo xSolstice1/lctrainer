@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { LLMProvider } from "../providers/LLMProvider.js";
+import type { AppConfig } from "../config/env.js";
+import type { ProviderRegistry } from "../providers/index.js";
 import { buildSystemPrompt } from "../prompts/socraticSystemPrompt.js";
 
 const guidanceRequestSchema = z.object({
@@ -19,10 +20,12 @@ const guidanceRequestSchema = z.object({
     possiblyIncomplete: z.boolean().optional(),
   }),
   userQuestion: z.string().optional(),
+  allowFullSolution: z.boolean().optional(),
+  provider: z.enum(["local", "bedrock", "openrouter"]).optional(),
   modelId: z.string().optional(),
 });
 
-export function createGuidanceRouter(provider: LLMProvider): Router {
+export function createGuidanceRouter(config: AppConfig, providers: ProviderRegistry): Router {
   const router = Router();
 
   router.post("/api/guidance/stream", async (req, res) => {
@@ -33,7 +36,14 @@ export function createGuidanceRouter(provider: LLMProvider): Router {
     }
 
     const request = parsed.data;
-    const systemPrompt = buildSystemPrompt(request.problem);
+    const providerId = request.provider ?? config.defaultProvider;
+    const provider = providers.get(providerId);
+    if (!provider) {
+      res.status(400).json({ error: `Provider "${providerId}" is not configured on this server` });
+      return;
+    }
+
+    const systemPrompt = buildSystemPrompt(request.problem, request.allowFullSolution);
     const abortController = new AbortController();
     // Listen on the response (not the request) — express.json() finishes
     // reading/parsing the request body before this handler runs, which

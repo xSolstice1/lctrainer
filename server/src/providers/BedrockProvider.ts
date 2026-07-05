@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/client-bedrock";
 import type { BedrockModelInfo, GuidanceChunk, GuidanceRequest } from "@lctrainer/shared";
 import type { LLMProvider } from "./LLMProvider.js";
+import { buildUserMessage } from "./openAiCompat.js";
 
 export interface BedrockProviderConfig {
   region: string;
@@ -86,17 +87,13 @@ export class BedrockProvider implements LLMProvider {
     systemPrompt: string,
     signal?: AbortSignal
   ): AsyncGenerator<GuidanceChunk> {
-    const userMessage = [
-      `Problem: ${request.problem.title} (${request.problem.difficulty})`,
-      `Current code (${request.code.language}):\n\`\`\`${request.code.language}\n${request.code.code}\n\`\`\``,
-      request.userQuestion ? `User question: ${request.userQuestion}` : "The user wants a hint on their current approach.",
-    ].join("\n\n");
+    const userMessage = buildUserMessage(request);
 
     const payload = {
       anthropic_version: "bedrock-2023-05-31",
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
-      max_tokens: 512,
+      max_tokens: request.allowFullSolution ? 1536 : 512,
     };
 
     try {

@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { BedrockModelInfo, ServerConfigInfo } from "@lctrainer/shared";
-import { DEFAULT_SERVER_URL, STORAGE_KEY_MODEL_ID, STORAGE_KEY_SERVER_URL } from "../lib/constants.js";
+import {
+  DEFAULT_SERVER_URL,
+  STORAGE_KEY_MODEL_ID,
+  STORAGE_KEY_PROVIDER,
+  STORAGE_KEY_SERVER_URL,
+} from "../lib/constants.js";
 
 type ConnectionStatus = { state: "idle" } | { state: "testing" } | { state: "ok" } | { state: "error"; message: string };
 type ModelsStatus =
@@ -12,6 +17,7 @@ type ModelsStatus =
 
 function OptionsApp() {
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
+  const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
   const [saved, setSaved] = useState(false);
   const [status, setStatus] = useState<ConnectionStatus>({ state: "idle" });
@@ -19,20 +25,22 @@ function OptionsApp() {
   const [models, setModels] = useState<ModelsStatus>({ state: "idle" });
 
   useEffect(() => {
-    chrome.storage.local.get([STORAGE_KEY_SERVER_URL, STORAGE_KEY_MODEL_ID]).then((stored) => {
+    chrome.storage.local.get([STORAGE_KEY_SERVER_URL, STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]).then((stored) => {
       if (stored[STORAGE_KEY_SERVER_URL]) setServerUrl(stored[STORAGE_KEY_SERVER_URL]);
+      if (stored[STORAGE_KEY_PROVIDER]) setProviderId(stored[STORAGE_KEY_PROVIDER]);
       if (stored[STORAGE_KEY_MODEL_ID]) setModelId(stored[STORAGE_KEY_MODEL_ID]);
     });
   }, []);
 
-  const loadServerConfigAndModels = async (url: string) => {
+  const loadServerConfigAndModels = async (url: string, forProviderId: string) => {
     try {
       const configRes = await fetch(`${url}/api/config`);
       if (!configRes.ok) throw new Error(`${configRes.status} ${configRes.statusText}`);
       const config: ServerConfigInfo = await configRes.json();
       setServerConfig(config);
 
-      if (config.llmProvider !== "bedrock") {
+      const effectiveProviderId = forProviderId || config.defaultProvider;
+      if (effectiveProviderId !== "bedrock") {
         setModels({ state: "idle" });
         return;
       }
@@ -48,13 +56,20 @@ function OptionsApp() {
   };
 
   useEffect(() => {
-    loadServerConfigAndModels(serverUrl);
+    loadServerConfigAndModels(serverUrl, providerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleProviderChange = (newProviderId: string) => {
+    setProviderId(newProviderId);
+    setModelId("");
+    loadServerConfigAndModels(serverUrl, newProviderId);
+  };
 
   const handleSave = async () => {
     await chrome.storage.local.set({
       [STORAGE_KEY_SERVER_URL]: serverUrl,
+      [STORAGE_KEY_PROVIDER]: providerId,
       [STORAGE_KEY_MODEL_ID]: modelId,
     });
     setSaved(true);
@@ -67,11 +82,14 @@ function OptionsApp() {
       const res = await fetch(`${serverUrl}/health`);
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       setStatus({ state: "ok" });
-      await loadServerConfigAndModels(serverUrl);
+      await loadServerConfigAndModels(serverUrl, providerId);
     } catch (err: any) {
       setStatus({ state: "error", message: err?.message ?? "Connection failed" });
     }
   };
+
+  const effectiveProviderId = providerId || serverConfig?.defaultProvider || "";
+  const selectedProviderInfo = serverConfig?.providers.find((p) => p.id === effectiveProviderId);
 
   return (
     <div style={{ fontFamily: "sans-serif", maxWidth: 480, padding: 24 }}>
@@ -88,14 +106,32 @@ function OptionsApp() {
 
       <div style={{ marginTop: 16 }}>
         <label>
-          Bedrock model
+          Provider
+          <select
+            value={providerId}
+            onChange={(e) => handleProviderChange(e.target.value)}
+            style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
+          >
+            <option value="">Server default ({serverConfig?.defaultProvider ?? "..."})</option>
+            {(serverConfig?.providers ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.id}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <label>
+          Model
           {models.state === "loaded" ? (
             <select
               value={modelId}
               onChange={(e) => setModelId(e.target.value)}
               style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
             >
-              <option value="">Server default ({serverConfig?.defaultModelId})</option>
+              <option value="">Server default ({selectedProviderInfo?.defaultModelId})</option>
               {models.models.map((m) => (
                 <option key={m.modelId} value={m.modelId}>
                   {m.modelName} — {m.modelId}
@@ -110,7 +146,7 @@ function OptionsApp() {
               placeholder={
                 models.state === "loading"
                   ? "Loading models from server..."
-                  : "Leave blank for server default, or type a model ID"
+                  : "Leave blank for provider default, or type a model ID"
               }
               style={{ display: "block", width: "100%", marginTop: 4, padding: 6 }}
             />
@@ -121,9 +157,9 @@ function OptionsApp() {
             Could not load Bedrock model list: {models.message}. You can still type a model ID manually.
           </p>
         )}
-        {serverConfig && serverConfig.llmProvider !== "bedrock" && (
+        {effectiveProviderId && effectiveProviderId !== "bedrock" && (
           <p style={{ fontSize: 12, color: "#666" }}>
-            Server is configured for {serverConfig.llmProvider} — model selection only applies when LLM_PROVIDER=bedrock.
+            Model list picker only applies to the Bedrock provider — for {effectiveProviderId}, type a model ID manually or leave blank for the server default.
           </p>
         )}
       </div>

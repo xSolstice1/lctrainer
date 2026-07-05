@@ -13,11 +13,15 @@ export interface MountedPanel {
 }
 
 interface MountPanelOptions {
+  initialProviderId: string;
   initialModelId: string;
   onRequestHint: (opts: {
     userQuestion?: string;
+    allowFullSolution?: boolean;
+    provider?: string;
     modelId?: string;
   }) => Promise<{ codeCaptureIncomplete: boolean }>;
+  onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
   onRequestServerInfo: () => void;
 }
@@ -45,8 +49,10 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
   root.render(
     createElement(PanelApp, {
       ref,
+      initialProviderId: options.initialProviderId,
       initialModelId: options.initialModelId,
       onRequestHint: options.onRequestHint,
+      onProviderChange: options.onProviderChange,
       onModelChange: options.onModelChange,
       onRequestServerInfo: options.onRequestServerInfo,
     })
