@@ -40,6 +40,18 @@ describe("usePanelState", () => {
     expect(result.current[0].isStreaming).toBe(false);
   });
 
+  it("stops streaming without an error on guidanceCancelled", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
+    act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "token", delta: "partial" } }));
+    act(() => result.current[1]({ type: "guidanceCancelled" }));
+
+    const [state] = result.current;
+    expect(state.isStreaming).toBe(false);
+    expect(state.error).toBeNull();
+    expect(state.hintText).toBe("partial");
+  });
+
   it("stops streaming and records the message on an error chunk", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
@@ -64,6 +76,21 @@ describe("usePanelState", () => {
     expect(state.error).toBeNull();
     expect(state.isStreaming).toBe(true);
     expect(state.codeCaptureIncomplete).toBe(true);
+  });
+
+  it("records and clears codeCaptureFailureReason across requests", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() =>
+      result.current[1]({
+        type: "hintRequested",
+        codeCaptureIncomplete: true,
+        codeCaptureFailureReason: "The code editor didn't respond in time",
+      })
+    );
+    expect(result.current[0].codeCaptureFailureReason).toBe("The code editor didn't respond in time");
+
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
+    expect(result.current[0].codeCaptureFailureReason).toBeNull();
   });
 
   it("stops streaming and records the message on a connectionError", () => {

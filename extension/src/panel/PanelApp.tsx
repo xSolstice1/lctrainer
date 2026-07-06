@@ -9,6 +9,7 @@ export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
   onConnectionError(message: string): void;
+  onGuidanceCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
 }
@@ -21,14 +22,15 @@ interface PanelAppProps {
     allowFullSolution?: boolean;
     provider?: string;
     modelId?: string;
-  }) => Promise<{ codeCaptureIncomplete: boolean }>;
+  }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
   onRequestServerInfo: () => void;
+  onCancelHint: () => void;
 }
 
 export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp(
-  { initialProviderId, initialModelId, onRequestHint, onProviderChange, onModelChange, onRequestServerInfo },
+  { initialProviderId, initialModelId, onRequestHint, onProviderChange, onModelChange, onRequestServerInfo, onCancelHint },
   ref
 ) {
   const [state, dispatch] = usePanelState();
@@ -39,6 +41,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onProblemLoaded: (problem) => dispatch({ type: "problemLoaded", problem }),
     onGuidanceChunk: (chunk) => dispatch({ type: "guidanceChunk", chunk }),
     onConnectionError: (message) => dispatch({ type: "connectionError", message }),
+    onGuidanceCancelled: () => dispatch({ type: "guidanceCancelled" }),
     onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
   }));
@@ -62,13 +65,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   };
 
   const handleRequest = async () => {
-    const { codeCaptureIncomplete } = await onRequestHint({
+    const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestHint({
       userQuestion: state.questionText.trim() || undefined,
       allowFullSolution: state.allowFullSolution || undefined,
       provider: state.selectedProviderId || undefined,
       modelId: state.selectedModelId || undefined,
     });
-    dispatch({ type: "hintRequested", codeCaptureIncomplete });
+    dispatch({ type: "hintRequested", codeCaptureIncomplete, codeCaptureFailureReason });
   };
 
   const buttonLabel = state.isStreaming
@@ -202,15 +205,23 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </label>
             </div>
 
-            <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
-              {buttonLabel}
-            </button>
+            <div className="panel-controls-row">
+              <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
+                {buttonLabel}
+              </button>
+              {state.isStreaming && (
+                <button type="button" className="cancel-button" onClick={onCancelHint}>
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="panel-output">
             {state.codeCaptureIncomplete && (
               <div className="incomplete-notice">
-                Code capture may be incomplete (some scrolled-out lines might be missing).
+                Code capture may be incomplete
+                {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
               </div>
             )}
             {state.error && <div className="error-text">{state.error}</div>}

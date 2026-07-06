@@ -123,6 +123,12 @@
   cursor: default;
 }
 
+.cancel-button {
+  background: transparent !important;
+  color: var(--danger) !important;
+  border-color: var(--danger) !important;
+}
+
 .hint-text {
   overflow-wrap: anywhere;
 }

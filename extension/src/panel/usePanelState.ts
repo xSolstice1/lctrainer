@@ -8,6 +8,7 @@ export interface PanelState {
   isStreaming: boolean;
   error: string | null;
   codeCaptureIncomplete: boolean;
+  codeCaptureFailureReason: string | null;
   questionText: string;
   allowFullSolution: boolean;
   serverConfig: ServerConfigInfo | null;
@@ -19,9 +20,10 @@ export interface PanelState {
 
 type PanelAction =
   | { type: "problemLoaded"; problem: ProblemMetadata | null }
-  | { type: "hintRequested"; codeCaptureIncomplete: boolean }
+  | { type: "hintRequested"; codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }
   | { type: "guidanceChunk"; chunk: GuidanceChunk }
   | { type: "connectionError"; message: string }
+  | { type: "guidanceCancelled" }
   | { type: "questionTextChanged"; text: string }
   | { type: "allowFullSolutionChanged"; allowFullSolution: boolean }
   | { type: "serverInfoLoaded"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
@@ -36,6 +38,7 @@ const initialState: PanelState = {
   isStreaming: false,
   error: null,
   codeCaptureIncomplete: false,
+  codeCaptureFailureReason: null,
   questionText: "",
   allowFullSolution: false,
   serverConfig: null,
@@ -57,6 +60,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         isStreaming: true,
         error: null,
         codeCaptureIncomplete: action.codeCaptureIncomplete,
+        codeCaptureFailureReason: action.codeCaptureFailureReason ?? null,
       };
     case "guidanceChunk":
       if (action.chunk.type === "token") {
@@ -72,6 +76,8 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, isStreaming: false, error: action.chunk.message };
     case "connectionError":
       return { ...state, isStreaming: false, error: action.message };
+    case "guidanceCancelled":
+      return { ...state, isStreaming: false };
     case "questionTextChanged":
       return { ...state, questionText: action.text };
     case "allowFullSolutionChanged":

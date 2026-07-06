@@ -34,10 +34,19 @@ chrome.runtime.onConnect.addListener((port) => {
   // request supersedes whatever is currently in flight.
   let activeRequestId: string | null = null;
   let activeRequestAbort: AbortController | null = null;
+  let cancelledRequestId: string | null = null;
 
   port.onMessage.addListener(async (message: ContentToBackgroundMessage) => {
     if (message.type === "ping") {
       port.postMessage({ type: "pong" });
+      return;
+    }
+
+    if (message.type === "cancelGuidance") {
+      if (activeRequestId === message.requestId) {
+        cancelledRequestId = message.requestId;
+        activeRequestAbort?.abort();
+      }
       return;
     }
 
@@ -94,7 +103,9 @@ chrome.runtime.onConnect.addListener((port) => {
         signal: requestAbort.signal,
       });
     } catch (err: any) {
-      if (activeRequestId === requestId) {
+      if (cancelledRequestId === requestId) {
+        port.postMessage({ type: "guidanceCancelled", requestId });
+      } else if (activeRequestId === requestId) {
         port.postMessage({ type: "connectionError", requestId, message: err?.message ?? "Failed to reach server" });
       }
       return;
@@ -118,7 +129,9 @@ chrome.runtime.onConnect.addListener((port) => {
         if (chunk.type === "done" || chunk.type === "error") break;
       }
     } catch (err: any) {
-      if (activeRequestId === requestId) {
+      if (cancelledRequestId === requestId) {
+        port.postMessage({ type: "guidanceCancelled", requestId });
+      } else if (activeRequestId === requestId) {
         port.postMessage({
           type: "connectionError",
           requestId,

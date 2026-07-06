@@ -22,11 +22,13 @@ async function main() {
     initialModelId: stored[STORAGE_KEY_MODEL_ID] ?? "",
 
     onRequestHint: async ({ userQuestion, allowFullSolution, provider, modelId }) => {
-      const code = await requestCurrentCode().catch(() => ({
-        code: "",
-        language: "unknown",
-        possiblyIncomplete: true,
-      }));
+      let codeCaptureFailureReason: string | undefined;
+      const code = await requestCurrentCode().catch((err: Error) => {
+        codeCaptureFailureReason = err.message.startsWith("Timed out")
+          ? "The code editor didn't respond in time"
+          : "The captured code failed validation";
+        return { code: "", language: "unknown", possiblyIncomplete: true };
+      });
 
       if (currentProblem) {
         const requestId = crypto.randomUUID();
@@ -51,7 +53,10 @@ async function main() {
         });
       }
 
-      return { codeCaptureIncomplete: code.possiblyIncomplete };
+      if (code.possiblyIncomplete && !codeCaptureFailureReason) {
+        codeCaptureFailureReason = "Some scrolled-out lines may be missing (Monaco's editor API wasn't available)";
+      }
+      return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
     },
 
     onProviderChange: (providerId) => {
@@ -65,6 +70,12 @@ async function main() {
     onRequestServerInfo: () => {
       port.postMessage({ type: "requestServerInfo" });
     },
+
+    onCancelHint: () => {
+      if (activeRequestId) {
+        port.postMessage({ type: "cancelGuidance", requestId: activeRequestId });
+      }
+    },
   });
 
   function handleMessage(message: BackgroundToContentMessage) {
@@ -76,6 +87,10 @@ async function main() {
       if (message.requestId !== activeRequestId) return;
       activeRequestId = null;
       panel.onConnectionError(message.message);
+    } else if (message.type === "guidanceCancelled") {
+      if (message.requestId !== activeRequestId) return;
+      activeRequestId = null;
+      panel.onGuidanceCancelled();
     } else if (message.type === "serverInfo") {
       panel.onServerInfoLoaded(message.config, message.modelsByProvider);
     } else if (message.type === "serverInfoError") {

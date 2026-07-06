@@ -8,6 +8,7 @@ export interface MountedPanel {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
   onConnectionError(message: string): void;
+  onGuidanceCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
 }
@@ -20,10 +21,11 @@ interface MountPanelOptions {
     allowFullSolution?: boolean;
     provider?: string;
     modelId?: string;
-  }) => Promise<{ codeCaptureIncomplete: boolean }>;
+  }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
   onRequestServerInfo: () => void;
+  onCancelHint: () => void;
 }
 
 /**
@@ -64,6 +66,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
       onProviderChange: options.onProviderChange,
       onModelChange: options.onModelChange,
       onRequestServerInfo: options.onRequestServerInfo,
+      onCancelHint: options.onCancelHint,
     })
   );
 
@@ -71,6 +74,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onProblemLoaded: (problem) => ref.current?.onProblemLoaded(problem),
     onGuidanceChunk: (chunk) => ref.current?.onGuidanceChunk(chunk),
     onConnectionError: (message) => ref.current?.onConnectionError(message),
+    onGuidanceCancelled: () => ref.current?.onGuidanceCancelled(),
     onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
   };
