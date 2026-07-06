@@ -9,6 +9,7 @@ import {
 } from "../lib/constants.js";
 import { describeFetchError, fetchWithTimeout } from "../lib/fetchWithTimeout.js";
 import { useTheme } from "../lib/useTheme.js";
+import { getSolveHistory, type ProblemRecord } from "../lib/solveHistory.js";
 import "./options.css";
 
 type ConnectionStatus = { state: "idle" } | { state: "testing" } | { state: "ok" } | { state: "error"; message: string };
@@ -17,6 +18,92 @@ type ModelsStatus =
   | { state: "loading" }
   | { state: "loaded"; models: ModelInfo[] }
   | { state: "error"; message: string };
+
+function computeDayStreak(records: ProblemRecord[]): number {
+  const acceptedDays = new Set(
+    records.filter((r) => r.acceptedMs !== null).map((r) => new Date(r.acceptedMs!).toDateString())
+  );
+  if (acceptedDays.size === 0) return 0;
+
+  let streak = 0;
+  const cursor = new Date();
+  while (acceptedDays.has(cursor.toDateString())) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function computeWeakTags(records: ProblemRecord[], limit = 5): { tag: string; avgHints: number; count: number }[] {
+  const byTag = new Map<string, { totalHints: number; count: number }>();
+  for (const r of records) {
+    if (r.acceptedMs === null) continue;
+    for (const tag of r.tags) {
+      const bucket = byTag.get(tag) ?? { totalHints: 0, count: 0 };
+      bucket.totalHints += r.hintCount;
+      bucket.count += 1;
+      byTag.set(tag, bucket);
+    }
+  }
+  return Array.from(byTag.entries())
+    .map(([tag, { totalHints, count }]) => ({ tag, avgHints: totalHints / count, count }))
+    .filter((t) => t.avgHints > 0)
+    .sort((a, b) => b.avgHints - a.avgHints)
+    .slice(0, limit);
+}
+
+function StatsSection() {
+  const [records, setRecords] = useState<ProblemRecord[] | null>(null);
+
+  useEffect(() => {
+    getSolveHistory().then((history) => setRecords(Object.values(history)));
+  }, []);
+
+  if (!records) return null;
+
+  const solved = records.filter((r) => r.acceptedMs !== null);
+  const totalHints = records.reduce((sum, r) => sum + r.hintCount, 0);
+  const streak = computeDayStreak(records);
+  const weakTags = computeWeakTags(records);
+
+  return (
+    <div className="options-stats">
+      <h3>Your stats</h3>
+      {records.length === 0 ? (
+        <p className="hint">No problems tracked yet — solve one on LeetCode to see stats here.</p>
+      ) : (
+        <>
+          <div className="stats-row">
+            <div className="stat-tile">
+              <span className="stat-value">{solved.length}</span>
+              <span className="stat-label">Solved</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-value">{streak}</span>
+              <span className="stat-label">Day streak</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-value">{totalHints}</span>
+              <span className="stat-label">Hints used</span>
+            </div>
+          </div>
+          {weakTags.length > 0 && (
+            <div className="weak-tags">
+              <p className="hint">Tags where you lean on hints most:</p>
+              <ul>
+                {weakTags.map((t) => (
+                  <li key={t.tag}>
+                    {t.tag} — avg {t.avgHints.toFixed(1)} hints/problem ({t.count} solved)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function OptionsApp() {
   const { theme, toggleTheme } = useTheme();
@@ -181,6 +268,8 @@ function OptionsApp() {
       {saved && <p className="success">Saved.</p>}
       {status.state === "ok" && <p className="success">Connected successfully.</p>}
       {status.state === "error" && <p className="error">Connection failed: {status.message}</p>}
+
+      <StatsSection />
 
       <div className="options-footer">Made by Vectr Labs</div>
     </div>

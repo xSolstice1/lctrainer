@@ -6,6 +6,7 @@ import { onProblemSlugChange } from "./spaNavigation.js";
 import { onAccepted } from "./submissionWatcher.js";
 import { mountPanel } from "../panel/mount.js";
 import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
+import { recordAccepted, recordHintUsed, recordProblemSeen } from "../lib/solveHistory.js";
 
 const PING_INTERVAL_MS = 20_000;
 // Keep the last 3 exchanges (6 turns) — enough for follow-up context without
@@ -64,6 +65,7 @@ async function main() {
         });
         history = [...history, { role: "user", content: userQuestion || "(requested a hint on the current code)" }];
         lastHintCode = code.code;
+        recordHintUsed(currentProblem, Date.now());
       }
 
       if (code.possiblyIncomplete && !codeCaptureFailureReason) {
@@ -163,11 +165,15 @@ async function main() {
     }
     currentProblem = problem;
     panel.onProblemLoaded(currentProblem);
+    if (currentProblem) recordProblemSeen(currentProblem, Date.now());
   }
 
   loadProblem();
   onProblemSlugChange(() => loadProblem());
-  onAccepted(() => panel.onProblemAccepted());
+  onAccepted(() => {
+    panel.onProblemAccepted();
+    if (currentProblem) recordAccepted(currentProblem, Date.now());
+  });
 
   console.log("[lctrainer] content script loaded on", location.pathname);
 }
