@@ -21,6 +21,24 @@ describe("usePanelState", () => {
     expect(result.current[0].hintLevel).toBe(3);
   });
 
+  it("records questionOverride/hintLevelOverride instead of the slider/textarea state", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "hintLevelChanged", hintLevel: 3 }));
+    act(() => result.current[1]({ type: "questionTextChanged", text: "ignored" }));
+    act(() =>
+      result.current[1]({
+        type: "hintRequested",
+        codeCaptureIncomplete: false,
+        questionOverride: "What's the complexity?",
+        hintLevelOverride: 1,
+      })
+    );
+
+    const entry = lastEntry(result.current[0].thread);
+    expect(entry.question).toBe("What's the complexity?");
+    expect(entry.hintLevel).toBe(1);
+  });
+
   it("appends a new thread entry on hintRequested and accumulates token deltas into it", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));

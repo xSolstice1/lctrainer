@@ -164,6 +164,12 @@
   border-color: var(--danger) !important;
 }
 
+.secondary-button {
+  background: transparent !important;
+  color: var(--text) !important;
+  white-space: nowrap;
+}
+
 .hint-text {
   overflow-wrap: anywhere;
 }
@@ -316,6 +322,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .hint-level-control {

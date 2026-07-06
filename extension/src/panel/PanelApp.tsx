@@ -71,15 +71,28 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onModelChange(modelId);
   };
 
-  const handleRequest = async () => {
+  const submitRequest = async (userQuestion: string | undefined, hintLevel: HintLevel) => {
     const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestHint({
-      userQuestion: state.questionText.trim() || undefined,
-      hintLevel: state.hintLevel,
+      userQuestion,
+      hintLevel,
       provider: state.selectedProviderId || undefined,
       modelId: state.selectedModelId || undefined,
     });
-    dispatch({ type: "hintRequested", codeCaptureIncomplete, codeCaptureFailureReason });
+    dispatch({
+      type: "hintRequested",
+      codeCaptureIncomplete,
+      codeCaptureFailureReason,
+      questionOverride: userQuestion,
+      hintLevelOverride: hintLevel,
+    });
   };
+
+  const handleRequest = () => submitRequest(state.questionText.trim() || undefined, state.hintLevel);
+
+  // Complexity checks are an evaluation of a complete attempt, not a hint request — level 1's
+  // prompt already has a dedicated branch for "evaluate what's there" that answers directly.
+  const handleComplexityCheck = () =>
+    submitRequest("What's the time and space complexity of my current code, and is it optimal?", 1);
 
   const buttonLabel = state.isStreaming
     ? "Thinking..."
@@ -218,6 +231,15 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             <div className="panel-controls-row">
               <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
                 {buttonLabel}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleComplexityCheck}
+                disabled={state.isStreaming || !state.problem}
+                title="Ask for the time/space complexity of your current code"
+              >
+                Complexity?
               </button>
               {state.isStreaming && (
                 <button type="button" className="cancel-button" onClick={onCancelHint}>

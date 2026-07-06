@@ -27,7 +27,13 @@ export interface PanelState {
 
 type PanelAction =
   | { type: "problemLoaded"; problem: ProblemMetadata | null }
-  | { type: "hintRequested"; codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }
+  | {
+      type: "hintRequested";
+      codeCaptureIncomplete: boolean;
+      codeCaptureFailureReason?: string;
+      questionOverride?: string;
+      hintLevelOverride?: HintLevel;
+    }
   | { type: "guidanceChunk"; chunk: GuidanceChunk }
   | { type: "connectionError"; message: string }
   | { type: "guidanceCancelled" }
@@ -69,8 +75,8 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, problem: action.problem };
     case "hintRequested": {
       const entry: ThreadEntry = {
-        question: state.questionText.trim(),
-        hintLevel: state.hintLevel,
+        question: action.questionOverride ?? state.questionText.trim(),
+        hintLevel: action.hintLevelOverride ?? state.hintLevel,
         hintText: "",
         reasoningText: "",
         error: null,
