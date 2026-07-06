@@ -1,4 +1,4 @@
-import type { GuidanceChunk, GuidanceRequest } from "@lctrainer/shared";
+import type { ConversationTurn, GuidanceChunk, GuidanceRequest } from "@lctrainer/shared";
 
 function stripHtml(html: string): string {
   return html
@@ -14,9 +14,11 @@ function stripHtml(html: string): string {
 }
 
 export function buildUserMessage(request: GuidanceRequest): string {
-  const statement = stripHtml(request.problem.statementHtml);
+  const isFirstTurn = !request.history?.length;
+  const statement = isFirstTurn ? stripHtml(request.problem.statementHtml) : null;
+
   return [
-    `Problem: ${request.problem.title} (${request.problem.difficulty})`,
+    isFirstTurn ? `Problem: ${request.problem.title} (${request.problem.difficulty})` : null,
     statement ? `Problem statement:\n${statement}` : null,
     `Current code (${request.code.language}):\n\`\`\`${request.code.language}\n${request.code.code}\n\`\`\``,
     request.userQuestion ? `User question: ${request.userQuestion}` : "The user wants a hint on their current approach.",
@@ -31,6 +33,7 @@ export interface OpenAiCompatStreamParams {
   modelId: string;
   systemPrompt: string;
   userMessage: string;
+  history?: ConversationTurn[];
   maxTokens?: number;
   signal?: AbortSignal;
   requestFailedPrefix: string;
@@ -50,6 +53,7 @@ export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams):
         max_tokens: params.maxTokens ?? 512,
         messages: [
           { role: "system", content: params.systemPrompt },
+          ...(params.history ?? []),
           { role: "user", content: params.userMessage },
         ],
       }),

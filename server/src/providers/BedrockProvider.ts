@@ -92,7 +92,7 @@ export class BedrockProvider implements LLMProvider {
     const payload = {
       anthropic_version: "bedrock-2023-05-31",
       system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
+      messages: [...(request.history ?? []), { role: "user", content: userMessage }],
       max_tokens: request.allowFullSolution ? 1536 : 512,
     };
 

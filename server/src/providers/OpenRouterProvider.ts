@@ -21,6 +21,7 @@ export class OpenRouterProvider implements LLMProvider {
       modelId: request.modelId || this.config.modelId,
       systemPrompt,
       userMessage: buildUserMessage(request),
+      history: request.history,
       maxTokens: request.allowFullSolution ? 1536 : 512,
       signal,
       requestFailedPrefix: "OpenRouter request failed",

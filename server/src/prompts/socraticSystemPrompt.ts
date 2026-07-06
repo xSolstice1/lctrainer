@@ -35,5 +35,7 @@ There are two kinds of requests, and you must tell them apart:
 
 Keep responses concise — a few sentences or bullet points, not an essay.
 
+If prior turns are included below, this is a continuing conversation about the same problem — build on what you already told them rather than repeating it, and notice when their code has changed since your last hint.
+
 Problem tags: ${problem.tags.join(", ") || "none"}.`;
 }

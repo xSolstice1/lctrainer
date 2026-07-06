@@ -1,4 +1,4 @@
-import type { BackgroundToContentMessage, ProblemMetadata } from "@lctrainer/shared";
+import type { BackgroundToContentMessage, ConversationTurn, ProblemMetadata } from "@lctrainer/shared";
 import { connectToBackground } from "../lib/messaging.js";
 import { extractProblemMetadata } from "./extractors/problem.js";
 import { requestCurrentCode } from "./extractors/code.js";
@@ -7,6 +7,9 @@ import { mountPanel } from "../panel/mount.js";
 import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
 
 const PING_INTERVAL_MS = 20_000;
+// Keep the last 3 exchanges (6 turns) — enough for follow-up context without
+// letting the prompt grow unbounded across a long session.
+const MAX_HISTORY_TURNS = 6;
 
 async function main() {
   const sessionId = crypto.randomUUID();
@@ -14,6 +17,8 @@ async function main() {
   let currentProblem: ProblemMetadata | null = null;
   let port: chrome.runtime.Port;
   let activeRequestId: string | null = null;
+  let history: ConversationTurn[] = [];
+  let pendingAssistantText = "";
 
   const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
 
@@ -33,6 +38,7 @@ async function main() {
       if (currentProblem) {
         const requestId = crypto.randomUUID();
         activeRequestId = requestId;
+        pendingAssistantText = "";
         port.postMessage({
           type: "requestGuidance",
           request: {
@@ -46,11 +52,13 @@ async function main() {
               possiblyIncomplete: code.possiblyIncomplete,
             },
             userQuestion,
+            history,
             allowFullSolution,
             provider,
             modelId,
           },
         });
+        history = [...history, { role: "user", content: userQuestion || "(requested a hint on the current code)" }];
       }
 
       if (code.possiblyIncomplete && !codeCaptureFailureReason) {
@@ -81,15 +89,28 @@ async function main() {
   function handleMessage(message: BackgroundToContentMessage) {
     if (message.type === "guidanceChunk") {
       if (message.requestId !== activeRequestId) return; // stale/superseded stream
-      if (message.chunk.type === "done" || message.chunk.type === "error") activeRequestId = null;
+      if (message.chunk.type === "token") pendingAssistantText += message.chunk.delta;
+      if (message.chunk.type === "done") {
+        activeRequestId = null;
+        if (pendingAssistantText) {
+          const turn: ConversationTurn = { role: "assistant", content: pendingAssistantText };
+          history = [...history, turn].slice(-MAX_HISTORY_TURNS);
+        }
+      }
+      if (message.chunk.type === "error") {
+        activeRequestId = null;
+        history = history.slice(0, -1); // drop the user turn we optimistically recorded; no assistant reply followed
+      }
       panel.onGuidanceChunk(message.chunk);
     } else if (message.type === "connectionError") {
       if (message.requestId !== activeRequestId) return;
       activeRequestId = null;
+      history = history.slice(0, -1);
       panel.onConnectionError(message.message);
     } else if (message.type === "guidanceCancelled") {
       if (message.requestId !== activeRequestId) return;
       activeRequestId = null;
+      history = history.slice(0, -1);
       panel.onGuidanceCancelled();
     } else if (message.type === "serverInfo") {
       panel.onServerInfoLoaded(message.config, message.modelsByProvider);
@@ -130,7 +151,9 @@ async function main() {
   }, PING_INTERVAL_MS);
 
   async function loadProblem() {
-    currentProblem = await extractProblemMetadata();
+    const problem = await extractProblemMetadata();
+    if (problem?.slug !== currentProblem?.slug) history = [];
+    currentProblem = problem;
     panel.onProblemLoaded(currentProblem);
   }
 

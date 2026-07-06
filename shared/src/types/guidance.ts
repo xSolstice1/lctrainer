@@ -3,6 +3,11 @@ import type { CodeSnapshot } from "./codeSnapshot.js";
 
 export type LLMProviderId = "local" | "bedrock" | "openrouter";
 
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface GuidanceRequest {
   sessionId: string;
   /** Unique per hint request; echoed back on chunks/errors so a stale or superseded request can be ignored. */
@@ -10,6 +15,8 @@ export interface GuidanceRequest {
   problem: ProblemMetadata;
   code: CodeSnapshot;
   userQuestion?: string;
+  /** Prior turns for this problem, oldest first. Does not include the current request. */
+  history?: ConversationTurn[];
   /** When true, the model is allowed to give a full working solution instead of a Socratic hint. Off by default. */
   allowFullSolution?: boolean;
   /** Overrides the server's default provider for this request, if set. */
