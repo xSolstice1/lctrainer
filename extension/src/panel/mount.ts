@@ -11,6 +11,7 @@ export interface MountedPanel {
   onGuidanceCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
+  onProblemAccepted(): void;
 }
 
 interface MountPanelOptions {
@@ -77,5 +78,6 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onGuidanceCancelled: () => ref.current?.onGuidanceCancelled(),
     onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
+    onProblemAccepted: () => ref.current?.onProblemAccepted(),
   };
 }

@@ -23,6 +23,7 @@ export interface PanelState {
   selectedProviderId: string;
   selectedModelId: string;
   serverInfoError: string | null;
+  showAcceptedReviewOffer: boolean;
 }
 
 type PanelAction =
@@ -42,7 +43,9 @@ type PanelAction =
   | { type: "serverInfoLoaded"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
   | { type: "serverInfoFailed"; message: string }
   | { type: "providerSelected"; providerId: string }
-  | { type: "modelSelected"; modelId: string };
+  | { type: "modelSelected"; modelId: string }
+  | { type: "problemAccepted" }
+  | { type: "dismissAcceptedReviewOffer" };
 
 const initialState: PanelState = {
   problem: null,
@@ -57,6 +60,7 @@ const initialState: PanelState = {
   selectedProviderId: "",
   selectedModelId: "",
   serverInfoError: null,
+  showAcceptedReviewOffer: false,
 };
 
 function updateLastEntry(thread: ThreadEntry[], patch: Partial<ThreadEntry>): ThreadEntry[] {
@@ -70,7 +74,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     case "problemLoaded":
       // A different problem loaded — the thread belongs to the old one.
       if (action.problem?.slug !== state.problem?.slug) {
-        return { ...state, problem: action.problem, thread: [] };
+        return { ...state, problem: action.problem, thread: [], showAcceptedReviewOffer: false };
       }
       return { ...state, problem: action.problem };
     case "hintRequested": {
@@ -87,6 +91,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         isStreaming: true,
         codeCaptureIncomplete: action.codeCaptureIncomplete,
         codeCaptureFailureReason: action.codeCaptureFailureReason ?? null,
+        showAcceptedReviewOffer: false,
       };
     }
     case "guidanceChunk":
@@ -118,6 +123,10 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, selectedProviderId: action.providerId, selectedModelId: "" };
     case "modelSelected":
       return { ...state, selectedModelId: action.modelId };
+    case "problemAccepted":
+      return { ...state, showAcceptedReviewOffer: true };
+    case "dismissAcceptedReviewOffer":
+      return { ...state, showAcceptedReviewOffer: false };
     default:
       return state;
   }

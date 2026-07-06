@@ -49,6 +49,7 @@ export interface PanelHandle {
   onGuidanceCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
+  onProblemAccepted(): void;
 }
 
 interface PanelAppProps {
@@ -81,6 +82,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onGuidanceCancelled: () => dispatch({ type: "guidanceCancelled" }),
     onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
+    onProblemAccepted: () => dispatch({ type: "problemAccepted" }),
   }));
 
   useEffect(() => {
@@ -123,6 +125,14 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   // prompt already has a dedicated branch for "evaluate what's there" that answers directly.
   const handleComplexityCheck = () =>
     submitRequest("What's the time and space complexity of my current code, and is it optimal?", 1);
+
+  const handleReviewOptimal = () => {
+    dispatch({ type: "dismissAcceptedReviewOffer" });
+    submitRequest(
+      "My solution was accepted. What's the optimal approach for this problem, and how does its time/space complexity compare to mine?",
+      1
+    );
+  };
 
   const buttonLabel = state.isStreaming
     ? "Thinking..."
@@ -291,6 +301,24 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           </div>
 
           <div className="panel-output">
+            {state.showAcceptedReviewOffer && (
+              <div className="accepted-offer">
+                <span>Accepted! Want to review the optimal approach?</span>
+                <div className="accepted-offer-actions">
+                  <button type="button" className="secondary-button" onClick={handleReviewOptimal} disabled={state.isStreaming}>
+                    Review
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => dispatch({ type: "dismissAcceptedReviewOffer" })}
+                    title="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
             {state.codeCaptureIncomplete && (
               <div className="incomplete-notice">
                 Code capture may be incomplete

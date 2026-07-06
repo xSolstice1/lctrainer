@@ -3,6 +3,7 @@ import { connectToBackground } from "../lib/messaging.js";
 import { extractProblemMetadata } from "./extractors/problem.js";
 import { requestCurrentCode } from "./extractors/code.js";
 import { onProblemSlugChange } from "./spaNavigation.js";
+import { onAccepted } from "./submissionWatcher.js";
 import { mountPanel } from "../panel/mount.js";
 import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
 
@@ -166,6 +167,7 @@ async function main() {
 
   loadProblem();
   onProblemSlugChange(() => loadProblem());
+  onAccepted(() => panel.onProblemAccepted());
 
   console.log("[lctrainer] content script loaded on", location.pathname);
 }

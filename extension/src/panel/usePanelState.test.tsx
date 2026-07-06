@@ -152,6 +152,22 @@ describe("usePanelState", () => {
     expect(result.current[0].thread).toEqual([]);
   });
 
+  it("shows the accepted review offer on problemAccepted and clears it on dismiss", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "problemAccepted" }));
+    expect(result.current[0].showAcceptedReviewOffer).toBe(true);
+
+    act(() => result.current[1]({ type: "dismissAcceptedReviewOffer" }));
+    expect(result.current[0].showAcceptedReviewOffer).toBe(false);
+  });
+
+  it("clears the accepted review offer when a new hint is requested", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "problemAccepted" }));
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
+    expect(result.current[0].showAcceptedReviewOffer).toBe(false);
+  });
+
   it("resets selectedModelId when a new provider is selected", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "modelSelected", modelId: "gpt-4" }));
