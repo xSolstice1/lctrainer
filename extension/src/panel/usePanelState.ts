@@ -1,12 +1,19 @@
 import { useReducer } from "react";
 import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 
-export interface PanelState {
-  problem: ProblemMetadata | null;
+export interface ThreadEntry {
+  question: string;
+  hintLevel: HintLevel;
   hintText: string;
   reasoningText: string;
-  isStreaming: boolean;
   error: string | null;
+}
+
+export interface PanelState {
+  problem: ProblemMetadata | null;
+  /** Past + in-flight exchanges for the current problem, oldest first. The last entry is live while isStreaming is true. */
+  thread: ThreadEntry[];
+  isStreaming: boolean;
   codeCaptureIncomplete: boolean;
   codeCaptureFailureReason: string | null;
   questionText: string;
@@ -33,10 +40,8 @@ type PanelAction =
 
 const initialState: PanelState = {
   problem: null,
-  hintText: "",
-  reasoningText: "",
+  thread: [],
   isStreaming: false,
-  error: null,
   codeCaptureIncomplete: false,
   codeCaptureFailureReason: null,
   questionText: "",
@@ -48,36 +53,53 @@ const initialState: PanelState = {
   serverInfoError: null,
 };
 
+function updateLastEntry(thread: ThreadEntry[], patch: Partial<ThreadEntry>): ThreadEntry[] {
+  const last = thread[thread.length - 1];
+  if (!last) return thread;
+  return [...thread.slice(0, -1), { ...last, ...patch }];
+}
+
 function reducer(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
     case "problemLoaded":
+      // A different problem loaded — the thread belongs to the old one.
+      if (action.problem?.slug !== state.problem?.slug) {
+        return { ...state, problem: action.problem, thread: [] };
+      }
       return { ...state, problem: action.problem };
-    case "hintRequested":
-      return {
-        ...state,
+    case "hintRequested": {
+      const entry: ThreadEntry = {
+        question: state.questionText.trim(),
+        hintLevel: state.hintLevel,
         hintText: "",
         reasoningText: "",
-        isStreaming: true,
         error: null,
+      };
+      return {
+        ...state,
+        thread: [...state.thread, entry],
+        isStreaming: true,
         codeCaptureIncomplete: action.codeCaptureIncomplete,
         codeCaptureFailureReason: action.codeCaptureFailureReason ?? null,
       };
+    }
     case "guidanceChunk":
       if (action.chunk.type === "token") {
-        return { ...state, hintText: state.hintText + action.chunk.delta };
+        return { ...state, ...appendToLast(state, "hintText", action.chunk.delta) };
       }
       if (action.chunk.type === "reasoning") {
-        return { ...state, reasoningText: state.reasoningText + action.chunk.delta };
+        return { ...state, ...appendToLast(state, "reasoningText", action.chunk.delta) };
       }
       if (action.chunk.type === "done") {
         return { ...state, isStreaming: false };
       }
       // error
-      return { ...state, isStreaming: false, error: action.chunk.message };
+      return { ...state, isStreaming: false, thread: updateLastEntry(state.thread, { error: action.chunk.message }) };
     case "connectionError":
-      return { ...state, isStreaming: false, error: action.message };
+      return { ...state, isStreaming: false, thread: updateLastEntry(state.thread, { error: action.message }) };
     case "guidanceCancelled":
-      return { ...state, isStreaming: false };
+      // Cancelled mid-stream — drop the incomplete entry rather than leaving a half-answer in the thread.
+      return { ...state, isStreaming: false, thread: state.thread.slice(0, -1) };
     case "questionTextChanged":
       return { ...state, questionText: action.text };
     case "hintLevelChanged":
@@ -93,6 +115,12 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     default:
       return state;
   }
+}
+
+function appendToLast(state: PanelState, field: "hintText" | "reasoningText", delta: string): Pick<PanelState, "thread"> {
+  const last = state.thread[state.thread.length - 1];
+  if (!last) return { thread: state.thread };
+  return { thread: [...state.thread.slice(0, -1), { ...last, [field]: last[field] + delta }] };
 }
 
 export function usePanelState() {

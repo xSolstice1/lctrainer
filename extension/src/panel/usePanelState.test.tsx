@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { usePanelState } from "./usePanelState.js";
 
+function lastEntry(thread: ReturnType<typeof usePanelState>[0]["thread"]) {
+  return thread[thread.length - 1];
+}
+
 describe("usePanelState", () => {
-  it("starts idle with empty text", () => {
+  it("starts idle with an empty thread", () => {
     const { result } = renderHook(() => usePanelState());
     const [state] = result.current;
     expect(state.isStreaming).toBe(false);
-    expect(state.hintText).toBe("");
-    expect(state.error).toBeNull();
+    expect(state.thread).toEqual([]);
     expect(state.hintLevel).toBe(1);
   });
 
@@ -18,25 +21,27 @@ describe("usePanelState", () => {
     expect(result.current[0].hintLevel).toBe(3);
   });
 
-  it("accumulates token deltas while streaming", () => {
+  it("appends a new thread entry on hintRequested and accumulates token deltas into it", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
     act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "token", delta: "Hel" } }));
     act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "token", delta: "lo" } }));
 
     const [state] = result.current;
-    expect(state.hintText).toBe("Hello");
+    expect(state.thread).toHaveLength(1);
+    expect(lastEntry(state.thread).hintText).toBe("Hello");
     expect(state.isStreaming).toBe(true);
   });
 
-  it("accumulates reasoning deltas separately from hint text", () => {
+  it("accumulates reasoning deltas separately from hint text on the current entry", () => {
     const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
     act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "reasoning", delta: "thinking..." } }));
     act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "token", delta: "answer" } }));
 
-    const [state] = result.current;
-    expect(state.reasoningText).toBe("thinking...");
-    expect(state.hintText).toBe("answer");
+    const entry = lastEntry(result.current[0].thread);
+    expect(entry.reasoningText).toBe("thinking...");
+    expect(entry.hintText).toBe("answer");
   });
 
   it("stops streaming on a done chunk", () => {
@@ -47,7 +52,7 @@ describe("usePanelState", () => {
     expect(result.current[0].isStreaming).toBe(false);
   });
 
-  it("stops streaming without an error on guidanceCancelled", () => {
+  it("drops the in-flight entry on guidanceCancelled", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
     act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "token", delta: "partial" } }));
@@ -55,8 +60,7 @@ describe("usePanelState", () => {
 
     const [state] = result.current;
     expect(state.isStreaming).toBe(false);
-    expect(state.error).toBeNull();
-    expect(state.hintText).toBe("partial");
+    expect(state.thread).toEqual([]);
   });
 
   it("stops streaming and records the message on an error chunk", () => {
@@ -66,21 +70,21 @@ describe("usePanelState", () => {
 
     const [state] = result.current;
     expect(state.isStreaming).toBe(false);
-    expect(state.error).toBe("boom");
+    expect(lastEntry(state.thread).error).toBe("boom");
   });
 
-  it("clears previous hint/reasoning/error when a new request starts", () => {
+  it("starts a fresh entry for each new request, keeping prior entries in the thread", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
     act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "token", delta: "old" } }));
-    act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "error", message: "oops" } }));
+    act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "done" } }));
 
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: true }));
 
     const [state] = result.current;
-    expect(state.hintText).toBe("");
-    expect(state.reasoningText).toBe("");
-    expect(state.error).toBeNull();
+    expect(state.thread).toHaveLength(2);
+    expect(state.thread[0].hintText).toBe("old");
+    expect(lastEntry(state.thread).hintText).toBe("");
     expect(state.isStreaming).toBe(true);
     expect(state.codeCaptureIncomplete).toBe(true);
   });
@@ -107,7 +111,27 @@ describe("usePanelState", () => {
 
     const [state] = result.current;
     expect(state.isStreaming).toBe(false);
-    expect(state.error).toBe("lost connection");
+    expect(lastEntry(state.thread).error).toBe("lost connection");
+  });
+
+  it("clears the thread when a different problem loads", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() =>
+      result.current[1]({
+        type: "problemLoaded",
+        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
+      })
+    );
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
+    expect(result.current[0].thread).toHaveLength(1);
+
+    act(() =>
+      result.current[1]({
+        type: "problemLoaded",
+        problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "" },
+      })
+    );
+    expect(result.current[0].thread).toEqual([]);
   });
 
   it("resets selectedModelId when a new provider is selected", () => {

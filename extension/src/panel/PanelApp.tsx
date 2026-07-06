@@ -234,14 +234,24 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                 {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
               </div>
             )}
-            {state.error && <div className="error-text">{state.error}</div>}
-            {state.reasoningText && (
-              <details className="reasoning-block">
-                <summary>{state.hintText ? "Thinking" : "Thinking…"}</summary>
-                <div className="reasoning-text">{state.reasoningText}</div>
-              </details>
-            )}
-            {state.hintText && <HintRenderer text={state.hintText} />}
+            {state.thread.map((entry, i) => (
+              <div className="thread-entry" key={i}>
+                {entry.question && (
+                  <div className="thread-question">
+                    {entry.question}
+                    <span className="thread-level-tag">{HINT_LEVEL_LABELS[entry.hintLevel]}</span>
+                  </div>
+                )}
+                {entry.error && <div className="error-text">{entry.error}</div>}
+                {entry.reasoningText && (
+                  <details className="reasoning-block">
+                    <summary>{entry.hintText ? "Thinking" : "Thinking…"}</summary>
+                    <div className="reasoning-text">{entry.reasoningText}</div>
+                  </details>
+                )}
+                {entry.hintText && <HintRenderer text={entry.hintText} />}
+              </div>
+            ))}
           </div>
 
           <div className="panel-footer">
