@@ -5,4 +5,5 @@ export const STORAGE_KEY_MODEL_ID = "lctrainer_model_id";
 export const STORAGE_KEY_THEME = "lctrainer_theme";
 export const STORAGE_KEY_PANEL_LAYOUT = "lctrainer_panel_layout";
 export const STORAGE_KEY_SOLVE_HISTORY = "lctrainer_solve_history";
+export const STORAGE_KEY_THREAD_CACHE = "lctrainer_thread_cache";
 export const CODE_POLL_INTERVAL_MS = 2500;

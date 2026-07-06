@@ -1,9 +1,10 @@
-import { useEffect, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
 import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
 import { HintRenderer } from "./HintRenderer.js";
+import { loadThread, saveThread } from "../lib/threadCache.js";
 
 const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   0: "Nudge",
@@ -95,6 +96,26 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onRequestServerInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tracks which problem slugs a restore attempt has completed for, so the
+  // persist effect below never overwrites the cache with the empty thread
+  // that's briefly in state between a problem-change reset and the restore
+  // actually landing.
+  const restoredSlugsRef = useRef<Set<string>>(new Set());
+  const slug = state.problem?.slug;
+
+  useEffect(() => {
+    if (!slug || restoredSlugsRef.current.has(slug)) return;
+    loadThread(slug).then((entries) => {
+      restoredSlugsRef.current.add(slug);
+      if (entries && entries.length > 0) dispatch({ type: "threadRestored", slug, entries });
+    });
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug || state.isStreaming || !restoredSlugsRef.current.has(slug)) return;
+    saveThread(slug, state.thread, Date.now());
+  }, [slug, state.thread, state.isStreaming]);
 
   const handleProviderChange = (providerId: string) => {
     dispatch({ type: "providerSelected", providerId });
@@ -332,10 +353,18 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             {state.thread.map((entry, i) => (
               <div className="thread-entry" key={i}>
                 {entry.question && (
-                  <div className="thread-question">
+                  <button
+                    type="button"
+                    className="thread-question"
+                    onClick={() => {
+                      dispatch({ type: "questionTextChanged", text: entry.question });
+                      dispatch({ type: "hintLevelChanged", hintLevel: entry.hintLevel });
+                    }}
+                    title="Reuse this question"
+                  >
                     {entry.question}
                     <span className="thread-level-tag">{HINT_LEVEL_LABELS[entry.hintLevel]}</span>
-                  </div>
+                  </button>
                 )}
                 {entry.error && <div className="error-text">{entry.error}</div>}
                 {entry.reasoningText && (

@@ -45,7 +45,8 @@ type PanelAction =
   | { type: "providerSelected"; providerId: string }
   | { type: "modelSelected"; modelId: string }
   | { type: "problemAccepted" }
-  | { type: "dismissAcceptedReviewOffer" };
+  | { type: "dismissAcceptedReviewOffer" }
+  | { type: "threadRestored"; slug: string; entries: ThreadEntry[] };
 
 const initialState: PanelState = {
   problem: null,
@@ -127,6 +128,10 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, showAcceptedReviewOffer: true };
     case "dismissAcceptedReviewOffer":
       return { ...state, showAcceptedReviewOffer: false };
+    case "threadRestored":
+      // Cache lookup is async — only apply if the user is still on the problem it was fetched for.
+      if (action.slug !== state.problem?.slug) return state;
+      return { ...state, thread: action.entries };
     default:
       return state;
   }

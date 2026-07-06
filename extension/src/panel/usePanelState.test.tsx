@@ -168,6 +168,32 @@ describe("usePanelState", () => {
     expect(result.current[0].showAcceptedReviewOffer).toBe(false);
   });
 
+  it("applies threadRestored when it matches the current problem", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() =>
+      result.current[1]({
+        type: "problemLoaded",
+        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
+      })
+    );
+    const cached = [{ question: "old q", hintLevel: 1 as const, hintText: "old a", reasoningText: "", error: null }];
+    act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries: cached }));
+    expect(result.current[0].thread).toEqual(cached);
+  });
+
+  it("ignores threadRestored for a stale slug the user has since navigated away from", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() =>
+      result.current[1]({
+        type: "problemLoaded",
+        problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "" },
+      })
+    );
+    const stale = [{ question: "stale", hintLevel: 1 as const, hintText: "x", reasoningText: "", error: null }];
+    act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries: stale }));
+    expect(result.current[0].thread).toEqual([]);
+  });
+
   it("resets selectedModelId when a new provider is selected", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "modelSelected", modelId: "gpt-4" }));

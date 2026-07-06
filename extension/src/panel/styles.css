@@ -126,9 +126,18 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-muted) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  text-align: left;
+}
+
+.thread-question:hover {
+  color: var(--text) !important;
 }
 
 .thread-level-tag {
