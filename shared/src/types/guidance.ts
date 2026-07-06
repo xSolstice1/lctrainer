@@ -20,6 +20,8 @@ export interface GuidanceRequest {
   userQuestion?: string;
   /** Prior turns for this problem, oldest first. Does not include the current request. */
   history?: ConversationTurn[];
+  /** True when the code differs from what was sent with the last hint request for this problem. */
+  codeChangedSinceLastHint?: boolean;
   /** Graduated hint depth for this request. Defaults to 1 (Socratic hint) server-side if omitted. */
   hintLevel?: HintLevel;
   /** Overrides the server's default provider for this request, if set. */

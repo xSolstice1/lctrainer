@@ -20,6 +20,9 @@ export function buildUserMessage(request: GuidanceRequest): string {
   return [
     isFirstTurn ? `Problem: ${request.problem.title} (${request.problem.difficulty})` : null,
     statement ? `Problem statement:\n${statement}` : null,
+    request.codeChangedSinceLastHint
+      ? "(The user has changed their code since the last hint — consider what they tried in response to it.)"
+      : null,
     `Current code (${request.code.language}):\n\`\`\`${request.code.language}\n${request.code.code}\n\`\`\``,
     request.userQuestion ? `User question: ${request.userQuestion}` : "The user wants a hint on their current approach.",
   ]

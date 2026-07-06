@@ -25,6 +25,7 @@ const guidanceRequestSchema = z.object({
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
     .max(20)
     .optional(),
+  codeChangedSinceLastHint: z.boolean().optional(),
   hintLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
   provider: z.enum(["local", "bedrock", "openrouter"]).optional(),
   modelId: z.string().optional(),

@@ -19,6 +19,7 @@ async function main() {
   let activeRequestId: string | null = null;
   let history: ConversationTurn[] = [];
   let pendingAssistantText = "";
+  let lastHintCode: string | null = null;
 
   const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
 
@@ -39,6 +40,7 @@ async function main() {
         const requestId = crypto.randomUUID();
         activeRequestId = requestId;
         pendingAssistantText = "";
+        const codeChangedSinceLastHint = history.length > 0 && lastHintCode !== null && code.code !== lastHintCode;
         port.postMessage({
           type: "requestGuidance",
           request: {
@@ -54,11 +56,13 @@ async function main() {
             userQuestion,
             history,
             hintLevel,
+            codeChangedSinceLastHint,
             provider,
             modelId,
           },
         });
         history = [...history, { role: "user", content: userQuestion || "(requested a hint on the current code)" }];
+        lastHintCode = code.code;
       }
 
       if (code.possiblyIncomplete && !codeCaptureFailureReason) {
@@ -152,7 +156,10 @@ async function main() {
 
   async function loadProblem() {
     const problem = await extractProblemMetadata();
-    if (problem?.slug !== currentProblem?.slug) history = [];
+    if (problem?.slug !== currentProblem?.slug) {
+      history = [];
+      lastHintCode = null;
+    }
     currentProblem = problem;
     panel.onProblemLoaded(currentProblem);
   }
