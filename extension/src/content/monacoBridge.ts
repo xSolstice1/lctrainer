@@ -62,11 +62,17 @@ function extractViaDomFallback(): CodeExtractionResult | null {
   };
 }
 
+const MAX_CODE_LENGTH = 200_000;
+
 function extractCode(): CodeExtractionResult {
-  return (
+  const result =
     extractViaMonacoApi() ??
-    extractViaDomFallback() ?? { code: "", language: "unknown", possiblyIncomplete: true }
-  );
+    extractViaDomFallback() ?? { code: "", language: "unknown", possiblyIncomplete: true };
+
+  if (result.code.length > MAX_CODE_LENGTH) {
+    return { ...result, code: result.code.slice(0, MAX_CODE_LENGTH), possiblyIncomplete: true };
+  }
+  return result;
 }
 
 document.addEventListener(REQUEST_EVENT, (event) => {
