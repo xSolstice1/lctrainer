@@ -12,6 +12,7 @@ export interface MountedPanel {
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
   onProblemAccepted(): void;
+  triggerHintShortcut(): void;
 }
 
 interface MountPanelOptions {
@@ -79,5 +80,6 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
     onProblemAccepted: () => ref.current?.onProblemAccepted(),
+    triggerHintShortcut: () => ref.current?.triggerHintShortcut(),
   };
 }

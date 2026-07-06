@@ -7,6 +7,12 @@ export default defineManifest({
   description: "Socratic AI hints for your live LeetCode code, powered by a local model (Ollama), AWS Bedrock, or OpenRouter.",
   permissions: ["storage"],
   host_permissions: ["https://leetcode.com/*"],
+  commands: {
+    "request-hint": {
+      suggested_key: { default: "Alt+H" },
+      description: "Get a hint on the current LeetCode problem",
+    },
+  },
   background: {
     service_worker: "src/background/background.ts",
     type: "module",

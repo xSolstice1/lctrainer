@@ -168,6 +168,10 @@ async function main() {
     if (currentProblem) recordProblemSeen(currentProblem, Date.now());
   }
 
+  chrome.runtime.onMessage.addListener((message: { type: string }) => {
+    if (message.type === "requestHintShortcut") panel.triggerHintShortcut();
+  });
+
   loadProblem();
   onProblemSlugChange(() => loadProblem());
   onAccepted(() => {

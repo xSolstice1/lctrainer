@@ -50,6 +50,7 @@ export interface PanelHandle {
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
   onProblemAccepted(): void;
+  triggerHintShortcut(): void;
 }
 
 interface PanelAppProps {
@@ -83,6 +84,9 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
     onProblemAccepted: () => dispatch({ type: "problemAccepted" }),
+    triggerHintShortcut: () => {
+      if (!state.isStreaming && state.problem) handleRequest();
+    },
   }));
 
   useEffect(() => {

@@ -24,6 +24,12 @@ async function getModelId(): Promise<string | undefined> {
   return stored[STORAGE_KEY_MODEL_ID] || undefined;
 }
 
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "request-hint") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) chrome.tabs.sendMessage(tab.id, { type: "requestHintShortcut" });
+});
+
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== PORT_NAME) return;
 
