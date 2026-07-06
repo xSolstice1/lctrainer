@@ -8,6 +8,7 @@
   --accent-text: #ffffff;
   --danger: #c62828;
   --success: #2e7d4f;
+  --warning: #a06a00;
 }
 
 :root.theme-dark {
@@ -20,6 +21,7 @@
   --accent-text: #ffffff;
   --danger: #ff6b6b;
   --success: #4caf82;
+  --warning: #e0a458;
 }
 
 body {
@@ -158,4 +160,71 @@ body {
 
 .weak-tags li {
   margin-bottom: 2px;
+}
+
+.learned-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.learned-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 6px 10px;
+}
+
+.learned-group summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.learned-count {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.learned-group ul {
+  margin: 6px 0 2px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.learned-group li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.learned-group li:first-child {
+  border-top: none;
+}
+
+.learned-title {
+  color: var(--text);
+}
+
+.difficulty-easy .learned-title {
+  color: var(--success);
+}
+
+.difficulty-medium .learned-title {
+  color: var(--warning);
+}
+
+.difficulty-hard .learned-title {
+  color: var(--danger);
+}
+
+.learned-meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }

@@ -5,6 +5,7 @@ import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
 import { HintRenderer } from "./HintRenderer.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
+import { PATTERN_TAGS } from "../lib/patternTags.js";
 
 const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   0: "Nudge",
@@ -12,36 +13,6 @@ const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   2: "Pseudocode",
   3: "Full solution",
 };
-
-// LeetCode's own topicTags mix algorithmic patterns/techniques (what this
-// trainer wants to surface) with plain data-structure tags (Array, String,
-// Hash Table, ...) — highlight the former rather than calling an LLM to
-// re-derive something LeetCode already tells us for free.
-const PATTERN_TAGS = new Set([
-  "Two Pointers",
-  "Sliding Window",
-  "Binary Search",
-  "Dynamic Programming",
-  "Backtracking",
-  "Greedy",
-  "Depth-First Search",
-  "Breadth-First Search",
-  "Union Find",
-  "Divide and Conquer",
-  "Bit Manipulation",
-  "Topological Sort",
-  "Trie",
-  "Monotonic Stack",
-  "Segment Tree",
-  "Binary Indexed Tree",
-  "Recursion",
-  "Memoization",
-  "Sorting",
-  "Two Pass",
-  "Prefix Sum",
-  "Fast and Slow Pointers",
-  "Line Sweep",
-]);
 
 export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
