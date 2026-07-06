@@ -13,6 +13,7 @@ async function main() {
 
   let currentProblem: ProblemMetadata | null = null;
   let port: chrome.runtime.Port;
+  let activeRequestId: string | null = null;
 
   const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
 
@@ -28,10 +29,13 @@ async function main() {
       }));
 
       if (currentProblem) {
+        const requestId = crypto.randomUUID();
+        activeRequestId = requestId;
         port.postMessage({
           type: "requestGuidance",
           request: {
             sessionId,
+            requestId,
             problem: currentProblem,
             code: {
               language: code.language,
@@ -65,8 +69,12 @@ async function main() {
 
   function handleMessage(message: BackgroundToContentMessage) {
     if (message.type === "guidanceChunk") {
+      if (message.requestId !== activeRequestId) return; // stale/superseded stream
+      if (message.chunk.type === "done" || message.chunk.type === "error") activeRequestId = null;
       panel.onGuidanceChunk(message.chunk);
     } else if (message.type === "connectionError") {
+      if (message.requestId !== activeRequestId) return;
+      activeRequestId = null;
       panel.onConnectionError(message.message);
     } else if (message.type === "serverInfo") {
       panel.onServerInfoLoaded(message.config, message.modelsByProvider);
@@ -81,8 +89,13 @@ async function main() {
     port.onMessage.addListener(handleMessage);
     port.onDisconnect.addListener(() => {
       // The background service worker was terminated (MV3 idle timeout,
-      // extension reload, etc). Reconnect immediately rather than leaving
-      // the panel permanently disconnected.
+      // extension reload, etc). Surface it if a request was in flight so the
+      // panel doesn't stay stuck on "Thinking...", then reconnect immediately
+      // rather than leaving the panel permanently disconnected.
+      if (activeRequestId) {
+        panel.onConnectionError("Lost connection to the extension background worker. Please try again.");
+        activeRequestId = null;
+      }
       connect();
     });
   }

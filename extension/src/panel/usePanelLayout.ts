@@ -75,8 +75,11 @@ export function usePanelLayout() {
     updateLayout({ minimized: !layoutRef.current.minimized });
   };
 
-  const startDrag = (startEvent: React.PointerEvent) => {
+  const startDrag = (startEvent: React.PointerEvent<HTMLElement>) => {
     startEvent.preventDefault();
+    const target = startEvent.currentTarget;
+    const pointerId = startEvent.pointerId;
+    target.setPointerCapture(pointerId);
     const startX = startEvent.clientX;
     const startY = startEvent.clientY;
     const start = layoutRef.current;
@@ -87,17 +90,21 @@ export function usePanelLayout() {
       setLayout(clampLayout({ ...layoutRef.current, top: start.top + dy, left: start.left + dx }));
     };
     const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
+      target.releasePointerCapture(pointerId);
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
       persist(layoutRef.current);
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
   };
 
-  const startResize = (startEvent: React.PointerEvent, corner: ResizeCorner) => {
+  const startResize = (startEvent: React.PointerEvent<HTMLElement>, corner: ResizeCorner) => {
     startEvent.preventDefault();
     startEvent.stopPropagation();
+    const target = startEvent.currentTarget;
+    const pointerId = startEvent.pointerId;
+    target.setPointerCapture(pointerId);
     const startX = startEvent.clientX;
     const startY = startEvent.clientY;
     const start = layoutRef.current;
@@ -121,12 +128,13 @@ export function usePanelLayout() {
       setLayout(clampLayout({ ...layoutRef.current, left, top, width, height }));
     };
     const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
+      target.releasePointerCapture(pointerId);
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
       persist(layoutRef.current);
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
   };
 
   return { layout, updateLayout, toggleMinimized, startDrag, startResize };

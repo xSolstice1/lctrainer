@@ -5,6 +5,8 @@ export type LLMProviderId = "local" | "bedrock" | "openrouter";
 
 export interface GuidanceRequest {
   sessionId: string;
+  /** Unique per hint request; echoed back on chunks/errors so a stale or superseded request can be ignored. */
+  requestId: string;
   problem: ProblemMetadata;
   code: CodeSnapshot;
   userQuestion?: string;

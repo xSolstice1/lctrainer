@@ -6,8 +6,9 @@ import {
   STORAGE_KEY_MODEL_ID,
   STORAGE_KEY_PROVIDER,
   STORAGE_KEY_SERVER_URL,
-  STORAGE_KEY_THEME,
 } from "../lib/constants.js";
+import { describeFetchError, fetchWithTimeout } from "../lib/fetchWithTimeout.js";
+import { useTheme } from "../lib/useTheme.js";
 import "./options.css";
 
 type ConnectionStatus = { state: "idle" } | { state: "testing" } | { state: "ok" } | { state: "error"; message: string };
@@ -17,32 +18,12 @@ type ModelsStatus =
   | { state: "loaded"; models: ModelInfo[] }
   | { state: "error"; message: string };
 
-function useDocumentTheme() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
-  useEffect(() => {
-    chrome.storage.local.get(STORAGE_KEY_THEME).then((stored) => {
-      if (stored[STORAGE_KEY_THEME] === "light" || stored[STORAGE_KEY_THEME] === "dark") {
-        setTheme(stored[STORAGE_KEY_THEME]);
-      }
-    });
-  }, []);
+function OptionsApp() {
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     document.documentElement.classList.toggle("theme-dark", theme === "dark");
   }, [theme]);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    chrome.storage.local.set({ [STORAGE_KEY_THEME]: next });
-  };
-
-  return { theme, toggleTheme };
-}
-
-function OptionsApp() {
-  const { theme, toggleTheme } = useDocumentTheme();
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
@@ -61,7 +42,7 @@ function OptionsApp() {
 
   const loadServerConfigAndModels = async (url: string, forProviderId: string) => {
     try {
-      const configRes = await fetch(`${url}/api/config`);
+      const configRes = await fetchWithTimeout(`${url}/api/config`);
       if (!configRes.ok) throw new Error(`${configRes.status} ${configRes.statusText}`);
       const config: ServerConfigInfo = await configRes.json();
       setServerConfig(config);
@@ -74,12 +55,12 @@ function OptionsApp() {
       }
 
       setModels({ state: "loading" });
-      const modelsRes = await fetch(`${url}/api/models/${effectiveProviderId}`);
+      const modelsRes = await fetchWithTimeout(`${url}/api/models/${effectiveProviderId}`);
       if (!modelsRes.ok) throw new Error(`${modelsRes.status} ${modelsRes.statusText}`);
       const data: { models: ModelInfo[] } = await modelsRes.json();
       setModels({ state: "loaded", models: data.models });
-    } catch (err: any) {
-      setModels({ state: "error", message: err?.message ?? "Failed to load models" });
+    } catch (err) {
+      setModels({ state: "error", message: describeFetchError(err) });
     }
   };
 
@@ -107,12 +88,12 @@ function OptionsApp() {
   const handleTestConnection = async () => {
     setStatus({ state: "testing" });
     try {
-      const res = await fetch(`${serverUrl}/health`);
+      const res = await fetchWithTimeout(`${serverUrl}/health`);
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       setStatus({ state: "ok" });
       await loadServerConfigAndModels(serverUrl, providerId);
-    } catch (err: any) {
-      setStatus({ state: "error", message: err?.message ?? "Connection failed" });
+    } catch (err) {
+      setStatus({ state: "error", message: describeFetchError(err) });
     }
   };
 

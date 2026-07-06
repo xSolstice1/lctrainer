@@ -7,6 +7,7 @@ import {
   STORAGE_KEY_SERVER_URL,
 } from "../lib/constants.js";
 import { parseSseStream } from "./sseClient.js";
+import { describeFetchError, fetchWithTimeout } from "../lib/fetchWithTimeout.js";
 
 async function getServerUrl(): Promise<string> {
   const stored = await chrome.storage.local.get(STORAGE_KEY_SERVER_URL);
@@ -26,8 +27,13 @@ async function getModelId(): Promise<string | undefined> {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== PORT_NAME) return;
 
-  const abortController = new AbortController();
-  port.onDisconnect.addListener(() => abortController.abort());
+  const portAbort = new AbortController();
+  port.onDisconnect.addListener(() => portAbort.abort());
+
+  // Only one guidance request should stream at a time per port; a new
+  // request supersedes whatever is currently in flight.
+  let activeRequestId: string | null = null;
+  let activeRequestAbort: AbortController | null = null;
 
   port.onMessage.addListener(async (message: ContentToBackgroundMessage) => {
     if (message.type === "ping") {
@@ -39,7 +45,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     if (message.type === "requestServerInfo") {
       try {
-        const configRes = await fetch(`${serverUrl}/api/config`);
+        const configRes = await fetchWithTimeout(`${serverUrl}/api/config`);
         if (!configRes.ok) throw new Error(`${configRes.status} ${configRes.statusText}`);
         const config: ServerConfigInfo = await configRes.json();
 
@@ -48,7 +54,7 @@ chrome.runtime.onConnect.addListener((port) => {
           config.providers
             .filter((p) => p.supportsModelList)
             .map(async (p) => {
-              const modelsRes = await fetch(`${serverUrl}/api/models/${p.id}`);
+              const modelsRes = await fetchWithTimeout(`${serverUrl}/api/models/${p.id}`);
               if (modelsRes.ok) {
                 const data: { models: ModelInfo[] } = await modelsRes.json();
                 modelsByProvider[p.id] = data.models;
@@ -57,13 +63,20 @@ chrome.runtime.onConnect.addListener((port) => {
         );
 
         port.postMessage({ type: "serverInfo", config, modelsByProvider });
-      } catch (err: any) {
-        port.postMessage({ type: "serverInfoError", message: err?.message ?? "Failed to reach server" });
+      } catch (err) {
+        port.postMessage({ type: "serverInfoError", message: describeFetchError(err) });
       }
       return;
     }
 
     if (message.type !== "requestGuidance") return;
+
+    const { requestId } = message.request;
+    activeRequestAbort?.abort();
+    const requestAbort = new AbortController();
+    activeRequestId = requestId;
+    activeRequestAbort = requestAbort;
+    portAbort.signal.addEventListener("abort", () => requestAbort.abort());
 
     const providerId = await getProviderId();
     const modelId = await getModelId();
@@ -78,21 +91,40 @@ chrome.runtime.onConnect.addListener((port) => {
           provider: message.request.provider ?? providerId,
           modelId: message.request.modelId ?? modelId,
         }),
-        signal: abortController.signal,
+        signal: requestAbort.signal,
       });
     } catch (err: any) {
-      port.postMessage({ type: "connectionError", message: err?.message ?? "Failed to reach server" });
+      if (activeRequestId === requestId) {
+        port.postMessage({ type: "connectionError", requestId, message: err?.message ?? "Failed to reach server" });
+      }
       return;
     }
 
     if (!response.ok || !response.body) {
-      port.postMessage({ type: "connectionError", message: `Server error: ${response.status} ${response.statusText}` });
+      if (activeRequestId === requestId) {
+        port.postMessage({
+          type: "connectionError",
+          requestId,
+          message: `Server error: ${response.status} ${response.statusText}`,
+        });
+      }
       return;
     }
 
-    for await (const chunk of parseSseStream(response.body)) {
-      port.postMessage({ type: "guidanceChunk", chunk });
-      if (chunk.type === "done" || chunk.type === "error") break;
+    try {
+      for await (const chunk of parseSseStream(response.body)) {
+        if (activeRequestId !== requestId) break; // superseded by a newer request
+        port.postMessage({ type: "guidanceChunk", requestId, chunk });
+        if (chunk.type === "done" || chunk.type === "error") break;
+      }
+    } catch (err: any) {
+      if (activeRequestId === requestId) {
+        port.postMessage({
+          type: "connectionError",
+          requestId,
+          message: err?.message ?? "Connection to server was lost",
+        });
+      }
     }
   });
 });

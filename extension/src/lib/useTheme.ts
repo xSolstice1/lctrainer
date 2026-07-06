@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { STORAGE_KEY_THEME } from "../lib/constants.js";
+import { STORAGE_KEY_THEME } from "./constants.js";
 
 export type Theme = "dark" | "light";
 

@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, forwardRef } from "react";
 import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
-import { useTheme } from "./useTheme.js";
+import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
 import { HintRenderer } from "./HintRenderer.js";
 

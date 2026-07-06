@@ -8,8 +8,8 @@ export type ContentToBackgroundMessage =
 
 /** Messages sent down the chrome.runtime.Port from background worker to content script. */
 export type BackgroundToContentMessage =
-  | { type: "guidanceChunk"; chunk: GuidanceChunk }
-  | { type: "connectionError"; message: string }
+  | { type: "guidanceChunk"; requestId: string; chunk: GuidanceChunk }
+  | { type: "connectionError"; requestId: string; message: string }
   | { type: "serverInfo"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
   | { type: "serverInfoError"; message: string }
   | { type: "pong" };

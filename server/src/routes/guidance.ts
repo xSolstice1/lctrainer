@@ -6,6 +6,7 @@ import { buildSystemPrompt } from "../prompts/socraticSystemPrompt.js";
 
 const guidanceRequestSchema = z.object({
   sessionId: z.string(),
+  requestId: z.string(),
   problem: z.object({
     slug: z.string(),
     title: z.string(),
