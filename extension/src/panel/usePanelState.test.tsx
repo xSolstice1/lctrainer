@@ -70,6 +70,27 @@ describe("usePanelState", () => {
     expect(result.current[0].isStreaming).toBe(false);
   });
 
+  it("records estimatedCostUsd from a done chunk onto the current entry", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
+    act(() =>
+      result.current[1]({
+        type: "guidanceChunk",
+        chunk: { type: "done", usage: { inputTokens: 100, outputTokens: 50 }, estimatedCostUsd: 0.001 },
+      })
+    );
+
+    expect(lastEntry(result.current[0].thread).estimatedCostUsd).toBe(0.001);
+  });
+
+  it("leaves estimatedCostUsd null when a done chunk carries no cost (e.g. local/Ollama)", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
+    act(() => result.current[1]({ type: "guidanceChunk", chunk: { type: "done" } }));
+
+    expect(lastEntry(result.current[0].thread).estimatedCostUsd).toBeNull();
+  });
+
   it("drops the in-flight entry on guidanceCancelled", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
@@ -176,7 +197,9 @@ describe("usePanelState", () => {
         problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
       })
     );
-    const cached = [{ question: "old q", hintLevel: 1 as const, hintText: "old a", reasoningText: "", error: null }];
+    const cached = [
+      { question: "old q", hintLevel: 1 as const, hintText: "old a", reasoningText: "", error: null, estimatedCostUsd: null },
+    ];
     act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries: cached }));
     expect(result.current[0].thread).toEqual(cached);
   });
@@ -189,7 +212,9 @@ describe("usePanelState", () => {
         problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "" },
       })
     );
-    const stale = [{ question: "stale", hintLevel: 1 as const, hintText: "x", reasoningText: "", error: null }];
+    const stale = [
+      { question: "stale", hintLevel: 1 as const, hintText: "x", reasoningText: "", error: null, estimatedCostUsd: null },
+    ];
     act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries: stale }));
     expect(result.current[0].thread).toEqual([]);
   });

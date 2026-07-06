@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import type { AppConfig } from "../config/env.js";
-import type { ProviderRegistry } from "../providers/index.js";
+import { defaultModelIdFor, type ProviderRegistry } from "../providers/index.js";
 import { buildSystemPrompt } from "../prompts/socraticSystemPrompt.js";
+import { estimateCostUsd } from "../pricing.js";
 
 const guidanceRequestSchema = z.object({
   sessionId: z.string(),
@@ -62,9 +63,16 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders?.();
 
+    const effectiveModelId = request.modelId || defaultModelIdFor(config, providerId);
+
     try {
       for await (const chunk of provider.streamGuidance(request, systemPrompt, abortController.signal)) {
-        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        if (chunk.type === "done" && chunk.usage) {
+          const cost = estimateCostUsd(effectiveModelId, chunk.usage.inputTokens, chunk.usage.outputTokens);
+          res.write(`data: ${JSON.stringify({ ...chunk, estimatedCostUsd: cost ?? undefined })}\n\n`);
+        } else {
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
         if (chunk.type === "done" || chunk.type === "error") break;
       }
     } catch (err: any) {

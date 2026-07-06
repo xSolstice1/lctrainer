@@ -41,6 +41,8 @@ export interface OpenAiCompatStreamParams {
   signal?: AbortSignal;
   requestFailedPrefix: string;
   streamErrorPrefix: string;
+  /** OpenRouter-specific: asks the API to include a usage object on the final SSE chunk. Ignored by servers that don't support it (Ollama). */
+  includeUsage?: boolean;
 }
 
 /** Streams chat completions from any OpenAI-compatible `/chat/completions` SSE endpoint (OpenRouter, Ollama, llama.cpp server, ...). */
@@ -59,6 +61,7 @@ export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams):
           ...(params.history ?? []),
           { role: "user", content: params.userMessage },
         ],
+        ...(params.includeUsage ? { usage: { include: true } } : {}),
       }),
       signal: params.signal,
     });
@@ -75,6 +78,7 @@ export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams):
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let usage: { inputTokens: number; outputTokens: number } | undefined;
 
   try {
     while (true) {
@@ -90,7 +94,7 @@ export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams):
 
         const data = line.slice("data:".length).trim();
         if (data === "[DONE]") {
-          yield { type: "done" };
+          yield { type: "done", usage };
           return;
         }
 
@@ -107,12 +111,16 @@ export async function* streamOpenAiCompatChat(params: OpenAiCompatStreamParams):
           if (delta?.content) {
             yield { type: "token", delta: delta.content };
           }
+          // OpenRouter includes this on the final chunk when usage.include was requested.
+          if (parsed.usage?.prompt_tokens != null) {
+            usage = { inputTokens: parsed.usage.prompt_tokens, outputTokens: parsed.usage.completion_tokens ?? 0 };
+          }
         } catch {
           // ignore malformed keep-alive lines
         }
       }
     }
-    yield { type: "done" };
+    yield { type: "done", usage };
   } catch (err: any) {
     yield { type: "error", message: err?.message ?? params.streamErrorPrefix };
   }

@@ -7,6 +7,7 @@ export interface ThreadEntry {
   hintText: string;
   reasoningText: string;
   error: string | null;
+  estimatedCostUsd: number | null;
 }
 
 export interface PanelState {
@@ -85,6 +86,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         hintText: "",
         reasoningText: "",
         error: null,
+        estimatedCostUsd: null,
       };
       return {
         ...state,
@@ -103,7 +105,11 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         return { ...state, ...appendToLast(state, "reasoningText", action.chunk.delta) };
       }
       if (action.chunk.type === "done") {
-        return { ...state, isStreaming: false };
+        return {
+          ...state,
+          isStreaming: false,
+          thread: updateLastEntry(state.thread, { estimatedCostUsd: action.chunk.estimatedCostUsd ?? null }),
+        };
       }
       // error
       return { ...state, isStreaming: false, thread: updateLastEntry(state.thread, { error: action.chunk.message }) };

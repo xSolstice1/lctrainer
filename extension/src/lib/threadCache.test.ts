@@ -11,7 +11,7 @@ function makeStorage() {
 }
 
 function entry(question: string): ThreadEntry {
-  return { question, hintLevel: 1, hintText: "answer", reasoningText: "", error: null };
+  return { question, hintLevel: 1, hintText: "answer", reasoningText: "", error: null, estimatedCostUsd: null };
 }
 
 beforeEach(() => {

@@ -107,18 +107,29 @@ export class BedrockProvider implements LLMProvider {
         { abortSignal: signal }
       );
 
+      let inputTokens = 0;
+      let outputTokens = 0;
+
       for await (const event of response.body ?? []) {
         if (!event.chunk?.bytes) continue;
         const decoded = JSON.parse(Buffer.from(event.chunk.bytes).toString("utf-8"));
         if (decoded.type === "content_block_delta" && decoded.delta?.text) {
           yield { type: "token", delta: decoded.delta.text };
         }
+        // Anthropic's Bedrock stream reports input tokens on message_start and
+        // (possibly updated) output tokens on message_delta/message_stop.
+        if (decoded.type === "message_start" && decoded.message?.usage?.input_tokens) {
+          inputTokens = decoded.message.usage.input_tokens;
+        }
+        if (decoded.usage?.output_tokens) {
+          outputTokens = decoded.usage.output_tokens;
+        }
         if (decoded.type === "message_stop") {
-          yield { type: "done" };
+          yield { type: "done", usage: { inputTokens, outputTokens } };
           return;
         }
       }
-      yield { type: "done" };
+      yield { type: "done", usage: { inputTokens, outputTokens } };
     } catch (err: any) {
       const name = err?.name ?? "";
       if (name === "ExpiredTokenException" || name === "UnauthorizedException" || name === "CredentialsProviderError") {

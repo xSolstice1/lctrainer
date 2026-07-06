@@ -30,11 +30,17 @@ export interface GuidanceRequest {
   modelId?: string;
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export type GuidanceChunk =
   | { type: "token"; delta: string }
   /** A reasoning/thinking-trace token, emitted separately from the final answer by reasoning models (e.g. DeepSeek-R1). */
   | { type: "reasoning"; delta: string }
-  | { type: "done" }
+  /** usage/estimatedCostUsd are present when the provider reports token counts (Bedrock always does; OpenRouter opts in) and the model is in the pricing table. Absent for local/Ollama, which is always free. */
+  | { type: "done"; usage?: TokenUsage; estimatedCostUsd?: number }
   | { type: "error"; message: string };
 
 export interface ModelInfo {

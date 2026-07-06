@@ -152,6 +152,12 @@
   padding: 1px 5px;
 }
 
+.thread-cost {
+  align-self: flex-end;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .pattern-tags {
   display: flex;
   flex-wrap: wrap;

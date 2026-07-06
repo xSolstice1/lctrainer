@@ -345,6 +345,11 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                   </details>
                 )}
                 {entry.hintText && <HintRenderer text={entry.hintText} />}
+                {entry.estimatedCostUsd != null && (
+                  <div className="thread-cost" title="Estimated cost based on reported token usage">
+                    ~${entry.estimatedCostUsd < 0.01 ? entry.estimatedCostUsd.toFixed(4) : entry.estimatedCostUsd.toFixed(3)}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -26,6 +26,7 @@ export class OpenRouterProvider implements LLMProvider {
       signal,
       requestFailedPrefix: "OpenRouter request failed",
       streamErrorPrefix: "OpenRouter stream error",
+      includeUsage: true,
     });
   }
 }
