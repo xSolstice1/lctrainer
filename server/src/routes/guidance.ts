@@ -25,7 +25,7 @@ const guidanceRequestSchema = z.object({
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
     .max(20)
     .optional(),
-  allowFullSolution: z.boolean().optional(),
+  hintLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
   provider: z.enum(["local", "bedrock", "openrouter"]).optional(),
   modelId: z.string().optional(),
 });
@@ -48,7 +48,7 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
       return;
     }
 
-    const systemPrompt = buildSystemPrompt(request.problem, request.allowFullSolution);
+    const systemPrompt = buildSystemPrompt(request.problem, request.hintLevel);
     const abortController = new AbortController();
     // Listen on the response (not the request) — express.json() finishes
     // reading/parsing the request body before this handler runs, which

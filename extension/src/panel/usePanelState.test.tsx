@@ -9,6 +9,13 @@ describe("usePanelState", () => {
     expect(state.isStreaming).toBe(false);
     expect(state.hintText).toBe("");
     expect(state.error).toBeNull();
+    expect(state.hintLevel).toBe(1);
+  });
+
+  it("updates hintLevel on hintLevelChanged", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() => result.current[1]({ type: "hintLevelChanged", hintLevel: 3 }));
+    expect(result.current[0].hintLevel).toBe(3);
   });
 
   it("accumulates token deltas while streaming", () => {

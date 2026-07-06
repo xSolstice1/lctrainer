@@ -22,7 +22,7 @@ export class OpenRouterProvider implements LLMProvider {
       systemPrompt,
       userMessage: buildUserMessage(request),
       history: request.history,
-      maxTokens: request.allowFullSolution ? 1536 : 512,
+      maxTokens: (request.hintLevel ?? 1) >= 2 ? 1536 : 512,
       signal,
       requestFailedPrefix: "OpenRouter request failed",
       streamErrorPrefix: "OpenRouter stream error",

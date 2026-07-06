@@ -1,9 +1,16 @@
 import { useEffect, useImperativeHandle, forwardRef } from "react";
-import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
 import { HintRenderer } from "./HintRenderer.js";
+
+const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
+  0: "Nudge",
+  1: "Hint",
+  2: "Pseudocode",
+  3: "Full solution",
+};
 
 export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
@@ -19,7 +26,7 @@ interface PanelAppProps {
   initialModelId: string;
   onRequestHint: (opts: {
     userQuestion?: string;
-    allowFullSolution?: boolean;
+    hintLevel?: HintLevel;
     provider?: string;
     modelId?: string;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
@@ -67,7 +74,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const handleRequest = async () => {
     const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestHint({
       userQuestion: state.questionText.trim() || undefined,
-      allowFullSolution: state.allowFullSolution || undefined,
+      hintLevel: state.hintLevel,
       provider: state.selectedProviderId || undefined,
       modelId: state.selectedModelId || undefined,
     });
@@ -76,11 +83,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 
   const buttonLabel = state.isStreaming
     ? "Thinking..."
-    : state.allowFullSolution
+    : state.hintLevel === 3
       ? "Get full solution"
-      : state.questionText.trim()
-        ? "Ask"
-        : "Get a hint";
+      : state.hintLevel === 2
+        ? "Get pseudocode"
+        : state.questionText.trim()
+          ? "Ask"
+          : "Get a hint";
 
   const effectiveProviderId = state.selectedProviderId || state.serverConfig?.defaultProvider || "";
   const providers = state.serverConfig?.providers ?? [];
@@ -180,18 +189,19 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               rows={2}
             />
 
-            <div className="panel-controls-row">
-              <label className="full-solution-toggle">
-                <input
-                  type="checkbox"
-                  checked={state.allowFullSolution}
-                  onChange={(e) =>
-                    dispatch({ type: "allowFullSolutionChanged", allowFullSolution: e.target.checked })
-                  }
-                />
-                Full solution
-              </label>
+            <label className="hint-level-control" title="How much of the answer to reveal">
+              <span>Depth: {HINT_LEVEL_LABELS[state.hintLevel]}</span>
+              <input
+                type="range"
+                min={0}
+                max={3}
+                step={1}
+                value={state.hintLevel}
+                onChange={(e) => dispatch({ type: "hintLevelChanged", hintLevel: Number(e.target.value) as HintLevel })}
+              />
+            </label>
 
+            <div className="panel-controls-row">
               <label className="opacity-control" title="Panel opacity">
                 <span>Opacity</span>
                 <input

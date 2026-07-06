@@ -3,6 +3,9 @@ import type { CodeSnapshot } from "./codeSnapshot.js";
 
 export type LLMProviderId = "local" | "bedrock" | "openrouter";
 
+/** Graduated hint depth: 0 = smallest nudge, 1 = Socratic hint (default), 2 = pseudocode, 3 = full solution. */
+export type HintLevel = 0 | 1 | 2 | 3;
+
 export interface ConversationTurn {
   role: "user" | "assistant";
   content: string;
@@ -17,8 +20,8 @@ export interface GuidanceRequest {
   userQuestion?: string;
   /** Prior turns for this problem, oldest first. Does not include the current request. */
   history?: ConversationTurn[];
-  /** When true, the model is allowed to give a full working solution instead of a Socratic hint. Off by default. */
-  allowFullSolution?: boolean;
+  /** Graduated hint depth for this request. Defaults to 1 (Socratic hint) server-side if omitted. */
+  hintLevel?: HintLevel;
   /** Overrides the server's default provider for this request, if set. */
   provider?: LLMProviderId;
   /** Overrides the selected provider's default model ID for this request, if set. */

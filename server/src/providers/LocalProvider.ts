@@ -36,7 +36,7 @@ export class LocalProvider implements LLMProvider {
       // Reasoning models (e.g. DeepSeek-R1) can spend hundreds of tokens on
       // their thinking trace before ever emitting the answer — a tight
       // budget here can cut them off mid-thought with no answer at all.
-      maxTokens: request.allowFullSolution ? 4096 : 2048,
+      maxTokens: (request.hintLevel ?? 1) >= 2 ? 4096 : 2048,
       signal,
       requestFailedPrefix: `Local model request failed (is Ollama running at ${this.config.baseUrl}?)`,
       streamErrorPrefix: "Local model stream error",

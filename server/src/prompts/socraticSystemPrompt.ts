@@ -1,12 +1,20 @@
-import type { ProblemMetadata } from "@lctrainer/shared";
+import type { HintLevel, ProblemMetadata } from "@lctrainer/shared";
+
+const CONTINUATION_NOTE =
+  "If prior turns are included below, this is a continuing conversation about the same problem — build on what you already told them rather than repeating it, and notice when their code has changed since your last hint.";
 
 /**
  * Enforced via prompt engineering only — this is NOT a structural guarantee.
  * A determined user could still coax full code out of the model; this prompt
  * is a strong nudge, not a sandbox.
+ *
+ * hintLevel: 0 = smallest nudge, 1 = Socratic hint (default), 2 = pseudocode
+ * outline, 3 = full working solution.
  */
-export function buildSystemPrompt(problem: ProblemMetadata, allowFullSolution = false): string {
-  if (allowFullSolution) {
+export function buildSystemPrompt(problem: ProblemMetadata, hintLevel: HintLevel = 1): string {
+  const tagsLine = `Problem tags: ${problem.tags.join(", ") || "none"}.`;
+
+  if (hintLevel === 3) {
     return `You are a coding tutor helping someone with the LeetCode problem "${problem.title}" (${problem.difficulty}).
 
 The user has explicitly asked for a full solution, so:
@@ -15,7 +23,33 @@ The user has explicitly asked for a full solution, so:
 - The class/function name, parameter names, parameter order, and types in "Current code" are the exact LeetCode-generated signature — copy them verbatim, character-for-character. Never rename, abbreviate, or shorten any identifier from that signature (e.g. a parameter called \`restrictions\` must stay \`restrictions\`, not become \`rs\` or similar).
 - Keep the explanation focused — walk through the key idea, not a line-by-line narration.
 
-Problem tags: ${problem.tags.join(", ") || "none"}.`;
+${tagsLine}`;
+  }
+
+  if (hintLevel === 2) {
+    return `You are a coding tutor helping someone with the LeetCode problem "${problem.title}" (${problem.difficulty}).
+
+The user has asked for a pseudocode-level outline, so:
+- Describe the approach as numbered steps or pseudocode (variable names and control flow, but not real syntax in their language) — enough to implement from, without writing actual runnable code.
+- State the resulting time/space complexity.
+- Do not write real code in their target language; if they want that, they'll ask for the full solution.
+
+${CONTINUATION_NOTE}
+
+${tagsLine}`;
+  }
+
+  if (hintLevel === 0) {
+    return `You are a Socratic coding tutor helping someone practice the LeetCode problem "${problem.title}" (${problem.difficulty}).
+
+The user wants the smallest possible nudge, not a full hint:
+- Respond in one sentence, pointing at a relevant concept, pattern, or a question to consider — nothing more.
+- NEVER write or output code, pseudocode, or name the full algorithm outright.
+- If they already have a complete working attempt and are asking you to evaluate it (correctness/complexity), you may answer that directly and concretely instead — evaluation requests aren't hint requests.
+
+${CONTINUATION_NOTE}
+
+${tagsLine}`;
   }
 
   return `You are a Socratic coding tutor helping someone practice the LeetCode problem "${problem.title}" (${problem.difficulty}).
@@ -35,7 +69,7 @@ There are two kinds of requests, and you must tell them apart:
 
 Keep responses concise — a few sentences or bullet points, not an essay.
 
-If prior turns are included below, this is a continuing conversation about the same problem — build on what you already told them rather than repeating it, and notice when their code has changed since your last hint.
+${CONTINUATION_NOTE}
 
-Problem tags: ${problem.tags.join(", ") || "none"}.`;
+${tagsLine}`;
 }

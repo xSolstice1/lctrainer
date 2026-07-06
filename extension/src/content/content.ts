@@ -26,7 +26,7 @@ async function main() {
     initialProviderId: stored[STORAGE_KEY_PROVIDER] ?? "",
     initialModelId: stored[STORAGE_KEY_MODEL_ID] ?? "",
 
-    onRequestHint: async ({ userQuestion, allowFullSolution, provider, modelId }) => {
+    onRequestHint: async ({ userQuestion, hintLevel, provider, modelId }) => {
       let codeCaptureFailureReason: string | undefined;
       const code = await requestCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
@@ -53,7 +53,7 @@ async function main() {
             },
             userQuestion,
             history,
-            allowFullSolution,
+            hintLevel,
             provider,
             modelId,
           },

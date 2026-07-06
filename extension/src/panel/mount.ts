@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { createElement, createRef } from "react";
-import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { PanelApp, type PanelHandle } from "./PanelApp.js";
 import panelStyles from "./styles.css?inline";
 
@@ -18,7 +18,7 @@ interface MountPanelOptions {
   initialModelId: string;
   onRequestHint: (opts: {
     userQuestion?: string;
-    allowFullSolution?: boolean;
+    hintLevel?: HintLevel;
     provider?: string;
     modelId?: string;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;

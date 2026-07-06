@@ -283,13 +283,16 @@
   gap: 8px;
 }
 
-.full-solution-toggle {
+.hint-level-control {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
   color: var(--text-muted);
-  white-space: nowrap;
+}
+
+.hint-level-control input[type="range"] {
+  width: 100%;
 }
 
 .opacity-control {

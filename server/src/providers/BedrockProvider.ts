@@ -93,7 +93,7 @@ export class BedrockProvider implements LLMProvider {
       anthropic_version: "bedrock-2023-05-31",
       system: systemPrompt,
       messages: [...(request.history ?? []), { role: "user", content: userMessage }],
-      max_tokens: request.allowFullSolution ? 1536 : 512,
+      max_tokens: (request.hintLevel ?? 1) >= 2 ? 1536 : 512,
     };
 
     try {

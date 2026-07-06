@@ -1,5 +1,5 @@
 import { useReducer } from "react";
-import type { GuidanceChunk, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 
 export interface PanelState {
   problem: ProblemMetadata | null;
@@ -10,7 +10,7 @@ export interface PanelState {
   codeCaptureIncomplete: boolean;
   codeCaptureFailureReason: string | null;
   questionText: string;
-  allowFullSolution: boolean;
+  hintLevel: HintLevel;
   serverConfig: ServerConfigInfo | null;
   modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>;
   selectedProviderId: string;
@@ -25,7 +25,7 @@ type PanelAction =
   | { type: "connectionError"; message: string }
   | { type: "guidanceCancelled" }
   | { type: "questionTextChanged"; text: string }
-  | { type: "allowFullSolutionChanged"; allowFullSolution: boolean }
+  | { type: "hintLevelChanged"; hintLevel: HintLevel }
   | { type: "serverInfoLoaded"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
   | { type: "serverInfoFailed"; message: string }
   | { type: "providerSelected"; providerId: string }
@@ -40,7 +40,7 @@ const initialState: PanelState = {
   codeCaptureIncomplete: false,
   codeCaptureFailureReason: null,
   questionText: "",
-  allowFullSolution: false,
+  hintLevel: 1,
   serverConfig: null,
   modelsByProvider: {},
   selectedProviderId: "",
@@ -80,8 +80,8 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, isStreaming: false };
     case "questionTextChanged":
       return { ...state, questionText: action.text };
-    case "allowFullSolutionChanged":
-      return { ...state, allowFullSolution: action.allowFullSolution };
+    case "hintLevelChanged":
+      return { ...state, hintLevel: action.hintLevel };
     case "serverInfoLoaded":
       return { ...state, serverConfig: action.config, modelsByProvider: action.modelsByProvider, serverInfoError: null };
     case "serverInfoFailed":
