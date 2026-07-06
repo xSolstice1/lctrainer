@@ -12,6 +12,36 @@ const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   3: "Full solution",
 };
 
+// LeetCode's own topicTags mix algorithmic patterns/techniques (what this
+// trainer wants to surface) with plain data-structure tags (Array, String,
+// Hash Table, ...) — highlight the former rather than calling an LLM to
+// re-derive something LeetCode already tells us for free.
+const PATTERN_TAGS = new Set([
+  "Two Pointers",
+  "Sliding Window",
+  "Binary Search",
+  "Dynamic Programming",
+  "Backtracking",
+  "Greedy",
+  "Depth-First Search",
+  "Breadth-First Search",
+  "Union Find",
+  "Divide and Conquer",
+  "Bit Manipulation",
+  "Topological Sort",
+  "Trie",
+  "Monotonic Stack",
+  "Segment Tree",
+  "Binary Indexed Tree",
+  "Recursion",
+  "Memoization",
+  "Sorting",
+  "Two Pass",
+  "Prefix Sum",
+  "Fast and Slow Pointers",
+  "Line Sweep",
+]);
+
 export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
@@ -108,6 +138,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const providers = state.serverConfig?.providers ?? [];
   const selectedProviderInfo = providers.find((p) => p.id === effectiveProviderId);
   const availableModels = (effectiveProviderId && state.modelsByProvider[effectiveProviderId as LLMProviderId]) || [];
+  const patternTags = (state.problem?.tags ?? []).filter((tag) => PATTERN_TAGS.has(tag));
 
   return (
     <div
@@ -150,6 +181,16 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
         <>
           <div className="panel-controls">
             <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+
+            {patternTags.length > 0 && (
+              <div className="pattern-tags">
+                {patternTags.map((tag) => (
+                  <span className="pattern-tag" key={tag}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {providers.length > 1 && (
               <label className="model-select-label">
