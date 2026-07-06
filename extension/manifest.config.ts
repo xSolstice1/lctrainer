@@ -6,7 +6,7 @@ export default defineManifest({
   version: "0.1.0",
   description: "Socratic AI hints for your live LeetCode code, powered by a local model (Ollama), AWS Bedrock, or OpenRouter.",
   permissions: ["storage"],
-  host_permissions: ["https://leetcode.com/*"],
+  host_permissions: ["https://leetcode.com/*", "https://www.hackerrank.com/*"],
   commands: {
     "request-hint": {
       suggested_key: { default: "Alt+H" },
@@ -19,11 +19,15 @@ export default defineManifest({
   },
   content_scripts: [
     {
-      matches: ["https://leetcode.com/problems/*"],
+      matches: ["https://leetcode.com/problems/*", "https://www.hackerrank.com/challenges/*"],
       js: ["src/content/content.ts"],
       run_at: "document_idle",
     },
     {
+      // LeetCode-only: exposes window.monaco in the MAIN world so the
+      // isolated-world content script can read the editor's real model
+      // instead of scraping virtualized DOM lines. HackerRank's adapter has
+      // no equivalent bridge yet — see hackerrank.ts's getCurrentCode.
       matches: ["https://leetcode.com/problems/*"],
       js: ["src/content/monacoBridge.ts"],
       world: "MAIN",

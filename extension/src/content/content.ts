@@ -1,9 +1,6 @@
 import type { BackgroundToContentMessage, ConversationTurn, ProblemMetadata } from "@lctrainer/shared";
 import { connectToBackground } from "../lib/messaging.js";
-import { extractProblemMetadata } from "./extractors/problem.js";
-import { requestCurrentCode } from "./extractors/code.js";
-import { onProblemSlugChange } from "./spaNavigation.js";
-import { onAccepted } from "./submissionWatcher.js";
+import { getSiteAdapter, type SiteAdapter } from "./sites/index.js";
 import { mountPanel } from "../panel/mount.js";
 import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
 import { recordAccepted, recordHintUsed, recordProblemSeen } from "../lib/solveHistory.js";
@@ -14,6 +11,10 @@ const PING_INTERVAL_MS = 20_000;
 const MAX_HISTORY_TURNS = 6;
 
 async function main() {
+  const detectedSite = getSiteAdapter();
+  if (!detectedSite) return; // manifest match patterns should prevent this, but guard anyway
+  const site: SiteAdapter = detectedSite;
+
   const sessionId = crypto.randomUUID();
 
   let currentProblem: ProblemMetadata | null = null;
@@ -31,7 +32,7 @@ async function main() {
 
     onRequestHint: async ({ userQuestion, hintLevel, provider, modelId }) => {
       let codeCaptureFailureReason: string | undefined;
-      const code = await requestCurrentCode().catch((err: Error) => {
+      const code = await site.getCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
           ? "The code editor didn't respond in time"
           : "The captured code failed validation";
@@ -69,7 +70,7 @@ async function main() {
       }
 
       if (code.possiblyIncomplete && !codeCaptureFailureReason) {
-        codeCaptureFailureReason = "Some scrolled-out lines may be missing (Monaco's editor API wasn't available)";
+        codeCaptureFailureReason = "Some scrolled-out lines may be missing (the editor's structured API wasn't available)";
       }
       return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
     },
@@ -158,7 +159,7 @@ async function main() {
   }, PING_INTERVAL_MS);
 
   async function loadProblem() {
-    const problem = await extractProblemMetadata();
+    const problem = await site.extractProblem();
     if (problem?.slug !== currentProblem?.slug) {
       history = [];
       lastHintCode = null;
@@ -173,13 +174,13 @@ async function main() {
   });
 
   loadProblem();
-  onProblemSlugChange(() => loadProblem());
-  onAccepted(() => {
+  site.onSlugChange(() => loadProblem());
+  site.onAccepted(() => {
     panel.onProblemAccepted();
     if (currentProblem) recordAccepted(currentProblem, Date.now());
   });
 
-  console.log("[lctrainer] content script loaded on", location.pathname);
+  console.log(`[lctrainer] content script loaded on ${site.name} at`, location.pathname);
 }
 
 main();
