@@ -85,6 +85,23 @@ describe("solveHistory", () => {
     expect(history["nonexistent"]).toBeUndefined();
   });
 
+  it("stores the url on first sight and updates it on repeat sightings", async () => {
+    await recordProblemSeen({ ...PROBLEM, url: "https://leetcode.com/problems/two-sum/" }, 1000);
+    let history = await getSolveHistory();
+    expect(history["two-sum"].url).toBe("https://leetcode.com/problems/two-sum/");
+
+    await recordProblemSeen({ ...PROBLEM, url: "https://leetcode.com/problems/two-sum/description/" }, 2000);
+    history = await getSolveHistory();
+    expect(history["two-sum"].url).toBe("https://leetcode.com/problems/two-sum/description/");
+  });
+
+  it("leaves the existing url untouched when a later sighting omits it", async () => {
+    await recordProblemSeen({ ...PROBLEM, url: "https://leetcode.com/problems/two-sum/" }, 1000);
+    await recordProblemSeen(PROBLEM, 2000);
+    const history = await getSolveHistory();
+    expect(history["two-sum"].url).toBe("https://leetcode.com/problems/two-sum/");
+  });
+
   it("tracks separate problems independently", async () => {
     await recordProblemSeen(PROBLEM, 1000);
     await recordProblemSeen({ ...PROBLEM, slug: "three-sum", title: "3Sum" }, 2000);

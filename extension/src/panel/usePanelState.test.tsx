@@ -158,7 +158,7 @@ describe("usePanelState", () => {
     act(() =>
       result.current[1]({
         type: "problemLoaded",
-        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
+        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "", url: "" },
       })
     );
     act(() => result.current[1]({ type: "hintRequested", codeCaptureIncomplete: false }));
@@ -167,7 +167,7 @@ describe("usePanelState", () => {
     act(() =>
       result.current[1]({
         type: "problemLoaded",
-        problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "" },
+        problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "", url: "" },
       })
     );
     expect(result.current[0].thread).toEqual([]);
@@ -194,7 +194,7 @@ describe("usePanelState", () => {
     act(() =>
       result.current[1]({
         type: "problemLoaded",
-        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
+        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "", url: "" },
       })
     );
     const cached = [
@@ -209,7 +209,7 @@ describe("usePanelState", () => {
     act(() =>
       result.current[1]({
         type: "problemLoaded",
-        problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "" },
+        problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "", url: "" },
       })
     );
     const stale = [
@@ -224,7 +224,7 @@ describe("usePanelState", () => {
     act(() =>
       result.current[1]({
         type: "problemLoaded",
-        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
+        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "", url: "" },
       })
     );
     const entries = [

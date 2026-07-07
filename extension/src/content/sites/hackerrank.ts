@@ -36,6 +36,7 @@ async function extractProblem(): Promise<ProblemMetadata | null> {
     difficulty: "Medium" as Difficulty,
     tags,
     statementHtml,
+    url: `https://www.hackerrank.com/challenges/${slug}/problem`,
   };
 }
 

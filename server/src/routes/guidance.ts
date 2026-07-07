@@ -14,6 +14,7 @@ const guidanceRequestSchema = z.object({
     difficulty: z.enum(["Easy", "Medium", "Hard"]),
     tags: z.array(z.string()),
     statementHtml: z.string(),
+    url: z.string().optional().default(""),
   }),
   code: z.object({
     language: z.string(),

@@ -14,6 +14,8 @@ export interface ProblemRecord {
   /** The editor's code at the moment of first acceptance, captured for display alongside the Solved history. */
   solutionCode: string | null;
   solutionLanguage: string | null;
+  /** The page URL the problem was last seen at, so history views can link back to it. Optional for records persisted before this field existed. */
+  url?: string;
 }
 
 export type SolveHistory = Record<string, ProblemRecord>;
@@ -31,7 +33,7 @@ async function updateHistory(mutate: (history: SolveHistory) => void): Promise<v
 
 function ensureRecord(
   history: SolveHistory,
-  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[] },
+  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[]; url?: string },
   nowMs: number
 ): ProblemRecord {
   const existing = history[problem.slug];
@@ -39,6 +41,7 @@ function ensureRecord(
     existing.lastSeenMs = nowMs;
     existing.title = problem.title;
     existing.tags = problem.tags;
+    if (problem.url) existing.url = problem.url;
     return existing;
   }
   const record: ProblemRecord = {
@@ -53,20 +56,21 @@ function ensureRecord(
     manualStatus: null,
     solutionCode: null,
     solutionLanguage: null,
+    url: problem.url,
   };
   history[problem.slug] = record;
   return record;
 }
 
 export async function recordProblemSeen(
-  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[] },
+  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[]; url?: string },
   nowMs: number
 ): Promise<void> {
   await updateHistory((history) => ensureRecord(history, problem, nowMs));
 }
 
 export async function recordHintUsed(
-  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[] },
+  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[]; url?: string },
   nowMs: number
 ): Promise<void> {
   await updateHistory((history) => {
@@ -75,7 +79,7 @@ export async function recordHintUsed(
 }
 
 export async function recordAccepted(
-  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[] },
+  problem: { slug: string; title: string; difficulty: "Easy" | "Medium" | "Hard"; tags: string[]; url?: string },
   nowMs: number,
   solution?: { code: string; language: string }
 ): Promise<void> {

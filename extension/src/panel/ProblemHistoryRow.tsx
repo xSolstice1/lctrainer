@@ -43,6 +43,18 @@ export function ProblemHistoryRow({ record, isCurrent, showCode, onReuseQuestion
           {record.difficulty} · {record.hintCount} hint{record.hintCount === 1 ? "" : "s"}
         </span>
       </button>
+      {record.url && (
+        <a
+          className="icon-button history-row-link"
+          href={record.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open problem"
+          onClick={(e) => e.stopPropagation()}
+        >
+          ↗
+        </a>
+      )}
       <button
         type="button"
         className="icon-button learned-status-toggle"

@@ -6,4 +6,6 @@ export interface ProblemMetadata {
   difficulty: Difficulty;
   tags: string[];
   statementHtml: string;
+  /** The page URL the problem was extracted from, so history views can link back to it. */
+  url: string;
 }

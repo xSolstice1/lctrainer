@@ -5,6 +5,10 @@ function getSlugFromPath(): string | null {
   return match?.[1] ?? null;
 }
 
+function canonicalUrl(slug: string): string {
+  return `https://leetcode.com/problems/${slug}/`;
+}
+
 async function fetchViaGraphQL(slug: string): Promise<ProblemMetadata | null> {
   const query = `
     query questionData($titleSlug: String!) {
@@ -36,6 +40,7 @@ async function fetchViaGraphQL(slug: string): Promise<ProblemMetadata | null> {
       difficulty: q.difficulty as Difficulty,
       tags: (q.topicTags ?? []).map((t: { name: string }) => t.name),
       statementHtml: q.content ?? "",
+      url: canonicalUrl(slug),
     };
   } catch {
     return null;
@@ -59,6 +64,7 @@ function fetchViaNextData(slug: string): ProblemMetadata | null {
       difficulty: (question.difficulty ?? "Medium") as Difficulty,
       tags: (question.topicTags ?? []).map((t: { name: string }) => t.name),
       statementHtml: question.content ?? "",
+      url: canonicalUrl(slug),
     };
   } catch {
     return null;
@@ -82,5 +88,6 @@ export async function extractProblemMetadata(): Promise<ProblemMetadata | null> 
     difficulty: "Medium",
     tags: [],
     statementHtml: "",
+    url: canonicalUrl(slug),
   };
 }
