@@ -243,6 +243,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 
       {!layout.minimized && (
         <>
+          <div className="panel-body">
           <div className="panel-controls">
             <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
 
@@ -410,6 +411,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               }}
               onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
             />
+          </div>
           </div>
 
           <div className="panel-footer">

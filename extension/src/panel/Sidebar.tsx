@@ -27,7 +27,7 @@ const TAB_LABELS: Record<SidebarTabId, string> = {
 // enough for the expand handle, no header/tabs. Its left edge stays pinned
 // to the panel's right edge, so shrinking to this width reads as the
 // sidebar sliding back into the panel rather than just hiding its content.
-const COLLAPSED_WIDTH = 22;
+const COLLAPSED_WIDTH = 28;
 
 export function Sidebar({
   theme,
@@ -56,7 +56,8 @@ export function Sidebar({
         title="Expand sidebar"
         onClick={onToggleCollapsed}
       >
-        ◂
+        <span className="sidebar-collapsed-arrow">◂</span>
+        <span className="sidebar-collapsed-label">History</span>
       </button>
     );
   }
