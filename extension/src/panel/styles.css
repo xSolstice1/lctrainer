@@ -121,12 +121,19 @@
   padding-bottom: 0;
 }
 
+.thread-entry-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
 .thread-question {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted) !important;
@@ -138,6 +145,19 @@
 
 .thread-question:hover {
   color: var(--text) !important;
+}
+
+.thread-question-placeholder {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.thread-delete {
+  flex-shrink: 0;
+  padding: 1px 6px !important;
+  font-size: 11px !important;
 }
 
 .thread-level-tag {

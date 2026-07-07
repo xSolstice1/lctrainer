@@ -219,6 +219,24 @@ describe("usePanelState", () => {
     expect(result.current[0].thread).toEqual([]);
   });
 
+  it("removes a thread entry by index on threadEntryDeleted", () => {
+    const { result } = renderHook(() => usePanelState());
+    act(() =>
+      result.current[1]({
+        type: "problemLoaded",
+        problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "" },
+      })
+    );
+    const entries = [
+      { question: "q1", hintLevel: 1 as const, hintText: "a1", reasoningText: "", error: null, estimatedCostUsd: null },
+      { question: "q2", hintLevel: 1 as const, hintText: "a2", reasoningText: "", error: null, estimatedCostUsd: null },
+    ];
+    act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries }));
+    act(() => result.current[1]({ type: "threadEntryDeleted", index: 0 }));
+
+    expect(result.current[0].thread).toEqual([entries[1]]);
+  });
+
   it("resets selectedModelId when a new provider is selected", () => {
     const { result } = renderHook(() => usePanelState());
     act(() => result.current[1]({ type: "modelSelected", modelId: "gpt-4" }));

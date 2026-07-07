@@ -47,7 +47,8 @@ type PanelAction =
   | { type: "modelSelected"; modelId: string }
   | { type: "problemAccepted" }
   | { type: "dismissAcceptedReviewOffer" }
-  | { type: "threadRestored"; slug: string; entries: ThreadEntry[] };
+  | { type: "threadRestored"; slug: string; entries: ThreadEntry[] }
+  | { type: "threadEntryDeleted"; index: number };
 
 const initialState: PanelState = {
   problem: null,
@@ -138,6 +139,8 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       // Cache lookup is async — only apply if the user is still on the problem it was fetched for.
       if (action.slug !== state.problem?.slug) return state;
       return { ...state, thread: action.entries };
+    case "threadEntryDeleted":
+      return { ...state, thread: state.thread.filter((_, i) => i !== action.index) };
     default:
       return state;
   }

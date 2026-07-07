@@ -3,8 +3,8 @@ import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadat
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
-import { HintRenderer } from "./HintRenderer.js";
 import { Drawer } from "./Drawer.js";
+import { ThreadPanel } from "./ThreadPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 
@@ -332,37 +332,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                 {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
               </div>
             )}
-            {state.thread.map((entry, i) => (
-              <div className="thread-entry" key={i}>
-                {entry.question && (
-                  <button
-                    type="button"
-                    className="thread-question"
-                    onClick={() => {
-                      dispatch({ type: "questionTextChanged", text: entry.question });
-                      dispatch({ type: "hintLevelChanged", hintLevel: entry.hintLevel });
-                    }}
-                    title="Reuse this question"
-                  >
-                    {entry.question}
-                    <span className="thread-level-tag">{HINT_LEVEL_LABELS[entry.hintLevel]}</span>
-                  </button>
-                )}
-                {entry.error && <div className="error-text">{entry.error}</div>}
-                {entry.reasoningText && (
-                  <details className="reasoning-block">
-                    <summary>{entry.hintText ? "Thinking" : "Thinking…"}</summary>
-                    <div className="reasoning-text">{entry.reasoningText}</div>
-                  </details>
-                )}
-                {entry.hintText && <HintRenderer text={entry.hintText} />}
-                {entry.estimatedCostUsd != null && (
-                  <div className="thread-cost" title="Estimated cost based on reported token usage">
-                    ~${entry.estimatedCostUsd < 0.01 ? entry.estimatedCostUsd.toFixed(4) : entry.estimatedCostUsd.toFixed(3)}
-                  </div>
-                )}
-              </div>
-            ))}
           </div>
 
           <div className="panel-footer">
@@ -377,7 +346,17 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           <Drawer
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
-            problemTab={<p className="hint">This problem's history moves here next.</p>}
+            problemTab={
+              <ThreadPanel
+                thread={state.thread}
+                onReuseQuestion={(question, hintLevel) => {
+                  dispatch({ type: "questionTextChanged", text: question });
+                  dispatch({ type: "hintLevelChanged", hintLevel });
+                  setDrawerOpen(false);
+                }}
+                onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
+              />
+            }
             learnedTab={<p className="hint">The Learned board moves here next.</p>}
           />
         </>
