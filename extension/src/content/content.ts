@@ -24,6 +24,13 @@ async function main() {
   let pendingAssistantText = "";
   let lastHintCode: string | null = null;
   let lastSubmissionError: SubmissionError | null = null;
+  // Interview mode keeps its own conversation history, separate from the
+  // learn-mode thread above — it's a different persona/context entirely.
+  let interviewHistory: ConversationTurn[] = [];
+  let pendingInterviewText = "";
+  // Only one request is ever in flight (shared activeRequestId below) — this
+  // says which history/pending-buffer the in-flight response belongs to.
+  let activeRequestMode: "learn" | "interview" = "learn";
 
   const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
 
@@ -43,6 +50,7 @@ async function main() {
       if (currentProblem) {
         const requestId = crypto.randomUUID();
         activeRequestId = requestId;
+        activeRequestMode = "learn";
         pendingAssistantText = "";
         const codeChangedSinceLastHint = history.length > 0 && lastHintCode !== null && code.code !== lastHintCode;
         port.postMessage({
@@ -77,6 +85,51 @@ async function main() {
       return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
     },
 
+    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId }) => {
+      let codeCaptureFailureReason: string | undefined;
+      const code = await site.getCurrentCode().catch((err: Error) => {
+        codeCaptureFailureReason = err.message.startsWith("Timed out")
+          ? "The code editor didn't respond in time"
+          : "The captured code failed validation";
+        return { code: "", language: "unknown", possiblyIncomplete: true };
+      });
+
+      if (currentProblem) {
+        const requestId = crypto.randomUUID();
+        activeRequestId = requestId;
+        activeRequestMode = "interview";
+        pendingInterviewText = "";
+        port.postMessage({
+          type: "requestGuidance",
+          request: {
+            sessionId,
+            requestId,
+            problem: currentProblem,
+            code: {
+              language: code.language,
+              code: code.code,
+              timestampMs: Date.now(),
+              possiblyIncomplete: code.possiblyIncomplete,
+            },
+            userQuestion,
+            history: interviewHistory,
+            mode: "interview",
+            interviewLevel,
+            pressureLevel,
+            interviewPhase,
+            provider,
+            modelId,
+          },
+        });
+        if (userQuestion) interviewHistory = [...interviewHistory, { role: "user", content: userQuestion }];
+      }
+
+      if (code.possiblyIncomplete && !codeCaptureFailureReason) {
+        codeCaptureFailureReason = "Some scrolled-out lines may be missing (the editor's structured API wasn't available)";
+      }
+      return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
+    },
+
     onProviderChange: (providerId) => {
       chrome.storage.local.set({ [STORAGE_KEY_PROVIDER]: providerId });
     },
@@ -99,29 +152,50 @@ async function main() {
   function handleMessage(message: BackgroundToContentMessage) {
     if (message.type === "guidanceChunk") {
       if (message.requestId !== activeRequestId) return; // stale/superseded stream
-      if (message.chunk.type === "token") pendingAssistantText += message.chunk.delta;
+      const isInterview = activeRequestMode === "interview";
+      if (message.chunk.type === "token") {
+        if (isInterview) pendingInterviewText += message.chunk.delta;
+        else pendingAssistantText += message.chunk.delta;
+      }
       if (message.chunk.type === "done") {
         activeRequestId = null;
-        if (pendingAssistantText) {
+        if (isInterview) {
+          if (pendingInterviewText) {
+            interviewHistory = [...interviewHistory, { role: "assistant", content: pendingInterviewText }];
+          }
+        } else if (pendingAssistantText) {
           const turn: ConversationTurn = { role: "assistant", content: pendingAssistantText };
           history = [...history, turn].slice(-MAX_HISTORY_TURNS);
         }
       }
       if (message.chunk.type === "error") {
         activeRequestId = null;
-        history = history.slice(0, -1); // drop the user turn we optimistically recorded; no assistant reply followed
+        // drop the user turn we optimistically recorded; no assistant reply followed
+        if (isInterview) interviewHistory = interviewHistory.slice(0, -1);
+        else history = history.slice(0, -1);
       }
-      panel.onGuidanceChunk(message.chunk);
+      if (isInterview) panel.onInterviewChunk(message.chunk);
+      else panel.onGuidanceChunk(message.chunk);
     } else if (message.type === "connectionError") {
       if (message.requestId !== activeRequestId) return;
       activeRequestId = null;
-      history = history.slice(0, -1);
-      panel.onConnectionError(message.message);
+      if (activeRequestMode === "interview") {
+        interviewHistory = interviewHistory.slice(0, -1);
+        panel.onInterviewConnectionError(message.message);
+      } else {
+        history = history.slice(0, -1);
+        panel.onConnectionError(message.message);
+      }
     } else if (message.type === "guidanceCancelled") {
       if (message.requestId !== activeRequestId) return;
       activeRequestId = null;
-      history = history.slice(0, -1);
-      panel.onGuidanceCancelled();
+      if (activeRequestMode === "interview") {
+        interviewHistory = interviewHistory.slice(0, -1);
+        panel.onInterviewCancelled();
+      } else {
+        history = history.slice(0, -1);
+        panel.onGuidanceCancelled();
+      }
     } else if (message.type === "serverInfo") {
       panel.onServerInfoLoaded(message.config, message.modelsByProvider);
     } else if (message.type === "serverInfoError") {
@@ -165,6 +239,7 @@ async function main() {
     if (problem?.slug !== currentProblem?.slug) {
       history = [];
       lastHintCode = null;
+      interviewHistory = [];
     }
     currentProblem = problem;
     // Write solve-history before notifying the panel — the Solved/Attempted

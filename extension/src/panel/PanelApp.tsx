@@ -1,5 +1,16 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
-import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo, SubmissionError } from "@lctrainer/shared";
+import type {
+  GuidanceChunk,
+  HintLevel,
+  InterviewLevel,
+  InterviewPhase,
+  LLMProviderId,
+  ModelInfo,
+  PressureLevel,
+  ProblemMetadata,
+  ServerConfigInfo,
+  SubmissionError,
+} from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
@@ -7,6 +18,7 @@ import { Sidebar } from "./Sidebar.js";
 import { SolvedPanel } from "./SolvedPanel.js";
 import { AttemptedPanel } from "./AttemptedPanel.js";
 import { ThreadPanel } from "./ThreadPanel.js";
+import { InterviewPanel } from "./InterviewPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 
@@ -17,11 +29,28 @@ const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   3: "Full solution",
 };
 
+const INTERVIEW_LEVEL_LABELS: Record<InterviewLevel, string> = {
+  junior: "Junior",
+  mid: "Mid-level",
+  senior: "Senior",
+  staff: "Staff",
+  principal: "Principal (L8)",
+};
+
+const PRESSURE_LEVEL_LABELS: Record<PressureLevel, string> = {
+  supportive: "Supportive",
+  standard: "Standard",
+  stress: "Stress",
+};
+
 export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
   onConnectionError(message: string): void;
   onGuidanceCancelled(): void;
+  onInterviewChunk(chunk: GuidanceChunk): void;
+  onInterviewConnectionError(message: string): void;
+  onInterviewCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
   onProblemAccepted(): void;
@@ -40,6 +69,14 @@ interface PanelAppProps {
     modelId?: string;
     submissionError?: SubmissionError;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
+  onRequestInterviewTurn: (opts: {
+    userQuestion?: string;
+    interviewLevel: InterviewLevel;
+    pressureLevel: PressureLevel;
+    interviewPhase: InterviewPhase;
+    provider?: string;
+    modelId?: string;
+  }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
   onRequestServerInfo: () => void;
@@ -47,7 +84,16 @@ interface PanelAppProps {
 }
 
 export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp(
-  { initialProviderId, initialModelId, onRequestHint, onProviderChange, onModelChange, onRequestServerInfo, onCancelHint },
+  {
+    initialProviderId,
+    initialModelId,
+    onRequestHint,
+    onRequestInterviewTurn,
+    onProviderChange,
+    onModelChange,
+    onRequestServerInfo,
+    onCancelHint,
+  },
   ref
 ) {
   const [state, dispatch] = usePanelState();
@@ -75,6 +121,9 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onGuidanceChunk: (chunk) => dispatch({ type: "guidanceChunk", chunk }),
     onConnectionError: (message) => dispatch({ type: "connectionError", message }),
     onGuidanceCancelled: () => dispatch({ type: "guidanceCancelled" }),
+    onInterviewChunk: (chunk) => dispatch({ type: "interviewChunk", chunk }),
+    onInterviewConnectionError: (message) => dispatch({ type: "interviewConnectionError", message }),
+    onInterviewCancelled: () => dispatch({ type: "interviewCancelled" }),
     onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
     onProblemAccepted: () => {
@@ -187,6 +236,41 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     );
   };
 
+  const submitInterviewTurn = async (userQuestion: string | undefined, phase: InterviewPhase) => {
+    const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestInterviewTurn({
+      userQuestion,
+      interviewLevel: state.interviewLevel,
+      pressureLevel: state.pressureLevel,
+      interviewPhase: phase,
+      provider: state.selectedProviderId || undefined,
+      modelId: state.selectedModelId || undefined,
+    });
+    dispatch({
+      type: "interviewTurnRequested",
+      question: userQuestion,
+      phase,
+      codeCaptureIncomplete,
+      codeCaptureFailureReason,
+    });
+  };
+
+  const handleStartInterview = () => submitInterviewTurn(undefined, "opening");
+
+  const handleSendInterviewMessage = () => {
+    const question = state.questionText.trim();
+    if (!question) return;
+    dispatch({ type: "questionTextChanged", text: "" });
+    submitInterviewTurn(question, state.interviewPhase === "opening" ? "opening" : "grilling");
+  };
+
+  const handleDoneCoding = () => {
+    submitInterviewTurn("I think I'm done — here's my code, ready for your questions.", "grilling");
+  };
+
+  const handleEndInterview = () => {
+    submitInterviewTurn("I'd like to end the interview here — please give me my final evaluation.", "grading");
+  };
+
   const buttonLabel = state.isStreaming
     ? "Thinking..."
     : state.hintLevel === 3
@@ -220,6 +304,15 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       <div className="panel-header" onPointerDown={startDrag}>
         <span className="panel-title">Leetcode Trainer</span>
         <div className="panel-header-actions">
+          <button
+            type="button"
+            className={`icon-button mode-toggle-button${state.interviewMode ? " active" : ""}`}
+            title={state.interviewMode ? "Switch to Learn mode" : "Switch to Interview mode"}
+            onClick={() => dispatch({ type: "interviewModeToggled" })}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {state.interviewMode ? "🎤 Interview" : "📖 Learn"}
+          </button>
           <button
             type="button"
             className="icon-button"
@@ -300,25 +393,129 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </div>
             )}
 
-            <textarea
-              className="question-input"
-              placeholder="Ask a specific question (optional) — otherwise just get a general hint"
-              value={state.questionText}
-              onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
-              rows={2}
-            />
+            {state.interviewMode ? (
+              <>
+                <label className="model-select-label">
+                  Candidate level
+                  <select
+                    value={state.interviewLevel}
+                    onChange={(e) => dispatch({ type: "interviewLevelChanged", interviewLevel: e.target.value as InterviewLevel })}
+                    disabled={state.isInterviewStreaming || state.interviewThread.length > 0}
+                  >
+                    {(Object.keys(INTERVIEW_LEVEL_LABELS) as InterviewLevel[]).map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {INTERVIEW_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className="hint-level-control" title="How much of the answer to reveal">
-              <span>Depth: {HINT_LEVEL_LABELS[state.hintLevel]}</span>
-              <input
-                type="range"
-                min={0}
-                max={3}
-                step={1}
-                value={state.hintLevel}
-                onChange={(e) => dispatch({ type: "hintLevelChanged", hintLevel: Number(e.target.value) as HintLevel })}
-              />
-            </label>
+                <label className="model-select-label">
+                  Pressure
+                  <select
+                    value={state.pressureLevel}
+                    onChange={(e) => dispatch({ type: "pressureLevelChanged", pressureLevel: e.target.value as PressureLevel })}
+                    disabled={state.isInterviewStreaming}
+                  >
+                    {(Object.keys(PRESSURE_LEVEL_LABELS) as PressureLevel[]).map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {PRESSURE_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {state.interviewThread.length === 0 ? (
+                  <div className="panel-controls-row">
+                    <button onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
+                      {state.isInterviewStreaming ? "Starting..." : "Start interview"}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      className="question-input"
+                      placeholder="Talk through your approach, answer a follow-up, or ask a clarifying question"
+                      value={state.questionText}
+                      onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+                      rows={2}
+                    />
+                    <div className="panel-controls-row">
+                      <button onClick={handleSendInterviewMessage} disabled={state.isInterviewStreaming || !state.problem}>
+                        {state.isInterviewStreaming ? "Thinking..." : "Send"}
+                      </button>
+                      {state.interviewPhase === "opening" && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={handleDoneCoding}
+                          disabled={state.isInterviewStreaming || !state.problem}
+                          title="Tell the interviewer you're done coding and ready for follow-ups"
+                        >
+                          I'm done, review my code
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={handleEndInterview}
+                        disabled={state.isInterviewStreaming || !state.problem}
+                        title="End the interview and get your final evaluation"
+                      >
+                        End &amp; grade
+                      </button>
+                      {state.isInterviewStreaming && (
+                        <button type="button" className="cancel-button" onClick={onCancelHint}>
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <textarea
+                  className="question-input"
+                  placeholder="Ask a specific question (optional) — otherwise just get a general hint"
+                  value={state.questionText}
+                  onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+                  rows={2}
+                />
+
+                <label className="hint-level-control" title="How much of the answer to reveal">
+                  <span>Depth: {HINT_LEVEL_LABELS[state.hintLevel]}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={3}
+                    step={1}
+                    value={state.hintLevel}
+                    onChange={(e) => dispatch({ type: "hintLevelChanged", hintLevel: Number(e.target.value) as HintLevel })}
+                  />
+                </label>
+
+                <div className="panel-controls-row">
+                  <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
+                    {buttonLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleComplexityCheck}
+                    disabled={state.isStreaming || !state.problem}
+                    title="Ask for the time/space complexity of your current code"
+                  >
+                    Complexity?
+                  </button>
+                  {state.isStreaming && (
+                    <button type="button" className="cancel-button" onClick={onCancelHint}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="panel-controls-row">
               <label className="opacity-control" title="Panel opacity">
@@ -333,84 +530,78 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                 />
               </label>
             </div>
-
-            <div className="panel-controls-row">
-              <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
-                {buttonLabel}
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleComplexityCheck}
-                disabled={state.isStreaming || !state.problem}
-                title="Ask for the time/space complexity of your current code"
-              >
-                Complexity?
-              </button>
-              {state.isStreaming && (
-                <button type="button" className="cancel-button" onClick={onCancelHint}>
-                  Cancel
-                </button>
-              )}
-            </div>
           </div>
 
           <div className="panel-output">
-            {state.submissionError && (
-              <div className="error-offer">
-                <span>{state.submissionError.message} — want to understand why?</span>
-                <div className="error-offer-actions">
-                  <button
-                    type="button"
-                    className="danger-button"
-                    onClick={handleExplainError}
-                    disabled={state.isStreaming}
-                  >
-                    Explain error
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    onClick={() => dispatch({ type: "dismissSubmissionError" })}
-                    title="Dismiss"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
+            {state.interviewMode ? (
+              <>
+                {state.codeCaptureIncomplete && (
+                  <div className="incomplete-notice">
+                    Code capture may be incomplete
+                    {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
+                  </div>
+                )}
+                <InterviewPanel thread={state.interviewThread} />
+              </>
+            ) : (
+              <>
+                {state.submissionError && (
+                  <div className="error-offer">
+                    <span>{state.submissionError.message} — want to understand why?</span>
+                    <div className="error-offer-actions">
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={handleExplainError}
+                        disabled={state.isStreaming}
+                      >
+                        Explain error
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => dispatch({ type: "dismissSubmissionError" })}
+                        title="Dismiss"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {state.showAcceptedReviewOffer && (
+                  <div className="accepted-offer">
+                    <span>Accepted! Want to review the optimal approach?</span>
+                    <div className="accepted-offer-actions">
+                      <button type="button" className="secondary-button" onClick={handleReviewOptimal} disabled={state.isStreaming}>
+                        Review
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => dispatch({ type: "dismissAcceptedReviewOffer" })}
+                        title="Dismiss"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {state.codeCaptureIncomplete && (
+                  <div className="incomplete-notice">
+                    Code capture may be incomplete
+                    {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
+                  </div>
+                )}
+                <ThreadPanel
+                  thread={state.thread}
+                  onReuseQuestion={(question, hintLevel) => {
+                    dispatch({ type: "questionTextChanged", text: question });
+                    dispatch({ type: "hintLevelChanged", hintLevel });
+                  }}
+                  onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
+                />
+              </>
             )}
-            {state.showAcceptedReviewOffer && (
-              <div className="accepted-offer">
-                <span>Accepted! Want to review the optimal approach?</span>
-                <div className="accepted-offer-actions">
-                  <button type="button" className="secondary-button" onClick={handleReviewOptimal} disabled={state.isStreaming}>
-                    Review
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    onClick={() => dispatch({ type: "dismissAcceptedReviewOffer" })}
-                    title="Dismiss"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            )}
-            {state.codeCaptureIncomplete && (
-              <div className="incomplete-notice">
-                Code capture may be incomplete
-                {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
-              </div>
-            )}
-            <ThreadPanel
-              thread={state.thread}
-              onReuseQuestion={(question, hintLevel) => {
-                dispatch({ type: "questionTextChanged", text: question });
-                dispatch({ type: "hintLevelChanged", hintLevel });
-              }}
-              onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
-            />
           </div>
           </div>
 

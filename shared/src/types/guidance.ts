@@ -21,6 +21,28 @@ export interface SubmissionError {
   detail: string;
 }
 
+/** Interviewer persona seniority — scales how rigorous/probing the follow-up questions and grading are. */
+export type InterviewLevel = "junior" | "mid" | "senior" | "staff" | "principal";
+
+/** How much the interviewer pushes: patient and encouraging vs. terse and time-pressured. */
+export type PressureLevel = "supportive" | "standard" | "stress";
+
+/**
+ * Interview mode's stage within a single mock-interview session for one problem:
+ * "opening" — interviewer restates the problem and asks the candidate to talk through their approach before coding.
+ * "grilling" — candidate clicked "I'm done"; interviewer has their code and asks follow-ups/probes edge cases.
+ * "grading" — interviewer produces a final structured verdict/strengths/weaknesses/rating.
+ */
+export type InterviewPhase = "opening" | "grilling" | "grading";
+
+export interface InterviewGrade {
+  verdict: "strong_hire" | "hire" | "no_hire" | "strong_no_hire";
+  strengths: string[];
+  weaknesses: string[];
+  /** 1-5 rating for the attempt at the selected InterviewLevel. */
+  rating: number;
+}
+
 export interface GuidanceRequest {
   sessionId: string;
   /** Unique per hint request; echoed back on chunks/errors so a stale or superseded request can be ignored. */
@@ -40,6 +62,12 @@ export interface GuidanceRequest {
   modelId?: string;
   /** Present when the user triggered "Explain error" after a failed submission. */
   submissionError?: SubmissionError;
+  /** "interview" switches to the mock-interview system prompt; omitted/"learn" is the default tutoring behavior. */
+  mode?: "learn" | "interview";
+  /** Required when mode is "interview". */
+  interviewLevel?: InterviewLevel;
+  pressureLevel?: PressureLevel;
+  interviewPhase?: InterviewPhase;
 }
 
 export interface TokenUsage {

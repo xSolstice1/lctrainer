@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AppConfig } from "../config/env.js";
 import { defaultModelIdFor, type ProviderRegistry } from "../providers/index.js";
 import { buildSystemPrompt } from "../prompts/socraticSystemPrompt.js";
+import { buildInterviewSystemPrompt } from "../prompts/interviewSystemPrompt.js";
 import { estimateCostUsd } from "../pricing.js";
 
 const guidanceRequestSchema = z.object({
@@ -36,6 +37,10 @@ const guidanceRequestSchema = z.object({
     message: z.string(),
     detail: z.string(),
   }).optional(),
+  mode: z.enum(["learn", "interview"]).optional(),
+  interviewLevel: z.enum(["junior", "mid", "senior", "staff", "principal"]).optional(),
+  pressureLevel: z.enum(["supportive", "standard", "stress"]).optional(),
+  interviewPhase: z.enum(["opening", "grilling", "grading"]).optional(),
 });
 
 export function createGuidanceRouter(config: AppConfig, providers: ProviderRegistry): Router {
@@ -56,7 +61,15 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
       return;
     }
 
-    const systemPrompt = buildSystemPrompt(request.problem, request.hintLevel, request.submissionError);
+    const systemPrompt =
+      request.mode === "interview"
+        ? buildInterviewSystemPrompt(
+            request.problem,
+            request.interviewPhase ?? "opening",
+            request.interviewLevel ?? "mid",
+            request.pressureLevel ?? "standard"
+          )
+        : buildSystemPrompt(request.problem, request.hintLevel, request.submissionError);
     const abortController = new AbortController();
     // Listen on the response (not the request) — express.json() finishes
     // reading/parsing the request body before this handler runs, which

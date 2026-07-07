@@ -1,6 +1,17 @@
 import { createRoot } from "react-dom/client";
 import { createElement, createRef } from "react";
-import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo, SubmissionError } from "@lctrainer/shared";
+import type {
+  GuidanceChunk,
+  HintLevel,
+  InterviewLevel,
+  InterviewPhase,
+  LLMProviderId,
+  ModelInfo,
+  PressureLevel,
+  ProblemMetadata,
+  ServerConfigInfo,
+  SubmissionError,
+} from "@lctrainer/shared";
 import { PanelApp, type PanelHandle } from "./PanelApp.js";
 import panelStyles from "./styles.css?inline";
 
@@ -9,6 +20,9 @@ export interface MountedPanel {
   onGuidanceChunk(chunk: GuidanceChunk): void;
   onConnectionError(message: string): void;
   onGuidanceCancelled(): void;
+  onInterviewChunk(chunk: GuidanceChunk): void;
+  onInterviewConnectionError(message: string): void;
+  onInterviewCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
   onProblemAccepted(): void;
@@ -26,6 +40,14 @@ interface MountPanelOptions {
     provider?: string;
     modelId?: string;
     submissionError?: SubmissionError;
+  }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
+  onRequestInterviewTurn: (opts: {
+    userQuestion?: string;
+    interviewLevel: InterviewLevel;
+    pressureLevel: PressureLevel;
+    interviewPhase: InterviewPhase;
+    provider?: string;
+    modelId?: string;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -68,6 +90,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
       initialProviderId: options.initialProviderId,
       initialModelId: options.initialModelId,
       onRequestHint: options.onRequestHint,
+      onRequestInterviewTurn: options.onRequestInterviewTurn,
       onProviderChange: options.onProviderChange,
       onModelChange: options.onModelChange,
       onRequestServerInfo: options.onRequestServerInfo,
@@ -80,6 +103,9 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onGuidanceChunk: (chunk) => ref.current?.onGuidanceChunk(chunk),
     onConnectionError: (message) => ref.current?.onConnectionError(message),
     onGuidanceCancelled: () => ref.current?.onGuidanceCancelled(),
+    onInterviewChunk: (chunk) => ref.current?.onInterviewChunk(chunk),
+    onInterviewConnectionError: (message) => ref.current?.onInterviewConnectionError(message),
+    onInterviewCancelled: () => ref.current?.onInterviewCancelled(),
     onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
     onProblemAccepted: () => ref.current?.onProblemAccepted(),

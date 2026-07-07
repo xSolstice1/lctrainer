@@ -1,10 +1,30 @@
 import { useReducer } from "react";
-import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo, SubmissionError } from "@lctrainer/shared";
+import type {
+  GuidanceChunk,
+  HintLevel,
+  InterviewLevel,
+  InterviewPhase,
+  LLMProviderId,
+  ModelInfo,
+  PressureLevel,
+  ProblemMetadata,
+  ServerConfigInfo,
+  SubmissionError,
+} from "@lctrainer/shared";
 
 export interface ThreadEntry {
   question: string;
   hintLevel: HintLevel;
   hintText: string;
+  reasoningText: string;
+  error: string | null;
+  estimatedCostUsd: number | null;
+}
+
+export interface InterviewEntry {
+  question: string;
+  phase: InterviewPhase;
+  answerText: string;
   reasoningText: string;
   error: string | null;
   estimatedCostUsd: number | null;
@@ -26,6 +46,13 @@ export interface PanelState {
   serverInfoError: string | null;
   showAcceptedReviewOffer: boolean;
   submissionError: SubmissionError | null;
+  /** Interview mode is a separate mode from learning — its own thread/phase/settings, toggled independently per problem. */
+  interviewMode: boolean;
+  interviewThread: InterviewEntry[];
+  interviewPhase: InterviewPhase;
+  interviewLevel: InterviewLevel;
+  pressureLevel: PressureLevel;
+  isInterviewStreaming: boolean;
 }
 
 type PanelAction =
@@ -51,7 +78,14 @@ type PanelAction =
   | { type: "threadRestored"; slug: string; entries: ThreadEntry[] }
   | { type: "threadEntryDeleted"; index: number }
   | { type: "submissionErrorReceived"; error: SubmissionError }
-  | { type: "dismissSubmissionError" };
+  | { type: "dismissSubmissionError" }
+  | { type: "interviewModeToggled" }
+  | { type: "interviewLevelChanged"; interviewLevel: InterviewLevel }
+  | { type: "pressureLevelChanged"; pressureLevel: PressureLevel }
+  | { type: "interviewTurnRequested"; question?: string; phase: InterviewPhase; codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }
+  | { type: "interviewChunk"; chunk: GuidanceChunk }
+  | { type: "interviewConnectionError"; message: string }
+  | { type: "interviewCancelled" };
 
 const initialState: PanelState = {
   problem: null,
@@ -68,9 +102,15 @@ const initialState: PanelState = {
   serverInfoError: null,
   showAcceptedReviewOffer: false,
   submissionError: null,
+  interviewMode: false,
+  interviewThread: [],
+  interviewPhase: "opening",
+  interviewLevel: "mid",
+  pressureLevel: "standard",
+  isInterviewStreaming: false,
 };
 
-function updateLastEntry(thread: ThreadEntry[], patch: Partial<ThreadEntry>): ThreadEntry[] {
+function updateLastEntry<T>(thread: T[], patch: Partial<T>): T[] {
   const last = thread[thread.length - 1];
   if (!last) return thread;
   return [...thread.slice(0, -1), { ...last, ...patch }];
@@ -81,7 +121,15 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     case "problemLoaded":
       // A different problem loaded — the thread belongs to the old one.
       if (action.problem?.slug !== state.problem?.slug) {
-        return { ...state, problem: action.problem, thread: [], showAcceptedReviewOffer: false, submissionError: null };
+        return {
+          ...state,
+          problem: action.problem,
+          thread: [],
+          showAcceptedReviewOffer: false,
+          submissionError: null,
+          interviewThread: [],
+          interviewPhase: "opening",
+        };
       }
       return { ...state, problem: action.problem };
     case "hintRequested": {
@@ -104,10 +152,13 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     }
     case "guidanceChunk":
       if (action.chunk.type === "token") {
-        return { ...state, ...appendToLast(state, "hintText", action.chunk.delta) };
+        return { ...state, thread: updateLastEntry(state.thread, { hintText: (state.thread.at(-1)?.hintText ?? "") + action.chunk.delta }) };
       }
       if (action.chunk.type === "reasoning") {
-        return { ...state, ...appendToLast(state, "reasoningText", action.chunk.delta) };
+        return {
+          ...state,
+          thread: updateLastEntry(state.thread, { reasoningText: (state.thread.at(-1)?.reasoningText ?? "") + action.chunk.delta }),
+        };
       }
       if (action.chunk.type === "done") {
         return {
@@ -149,15 +200,71 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, thread: action.entries };
     case "threadEntryDeleted":
       return { ...state, thread: state.thread.filter((_, i) => i !== action.index) };
+    case "interviewModeToggled":
+      return { ...state, interviewMode: !state.interviewMode };
+    case "interviewLevelChanged":
+      return { ...state, interviewLevel: action.interviewLevel };
+    case "pressureLevelChanged":
+      return { ...state, pressureLevel: action.pressureLevel };
+    case "interviewTurnRequested": {
+      const entry: InterviewEntry = {
+        question: action.question ?? "",
+        phase: action.phase,
+        answerText: "",
+        reasoningText: "",
+        error: null,
+        estimatedCostUsd: null,
+      };
+      return {
+        ...state,
+        interviewThread: [...state.interviewThread, entry],
+        interviewPhase: action.phase,
+        isInterviewStreaming: true,
+        codeCaptureIncomplete: action.codeCaptureIncomplete,
+        codeCaptureFailureReason: action.codeCaptureFailureReason ?? null,
+      };
+    }
+    case "interviewChunk":
+      if (action.chunk.type === "token") {
+        return {
+          ...state,
+          interviewThread: updateLastEntry(state.interviewThread, {
+            answerText: (state.interviewThread.at(-1)?.answerText ?? "") + action.chunk.delta,
+          }),
+        };
+      }
+      if (action.chunk.type === "reasoning") {
+        return {
+          ...state,
+          interviewThread: updateLastEntry(state.interviewThread, {
+            reasoningText: (state.interviewThread.at(-1)?.reasoningText ?? "") + action.chunk.delta,
+          }),
+        };
+      }
+      if (action.chunk.type === "done") {
+        return {
+          ...state,
+          isInterviewStreaming: false,
+          interviewThread: updateLastEntry(state.interviewThread, { estimatedCostUsd: action.chunk.estimatedCostUsd ?? null }),
+        };
+      }
+      // error
+      return {
+        ...state,
+        isInterviewStreaming: false,
+        interviewThread: updateLastEntry(state.interviewThread, { error: action.chunk.message }),
+      };
+    case "interviewConnectionError":
+      return {
+        ...state,
+        isInterviewStreaming: false,
+        interviewThread: updateLastEntry(state.interviewThread, { error: action.message }),
+      };
+    case "interviewCancelled":
+      return { ...state, isInterviewStreaming: false, interviewThread: state.interviewThread.slice(0, -1) };
     default:
       return state;
   }
-}
-
-function appendToLast(state: PanelState, field: "hintText" | "reasoningText", delta: string): Pick<PanelState, "thread"> {
-  const last = state.thread[state.thread.length - 1];
-  if (!last) return { thread: state.thread };
-  return { thread: [...state.thread.slice(0, -1), { ...last, [field]: last[field] + delta }] };
 }
 
 export function usePanelState() {

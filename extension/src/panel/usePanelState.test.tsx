@@ -246,4 +246,104 @@ describe("usePanelState", () => {
     expect(state.selectedProviderId).toBe("openrouter");
     expect(state.selectedModelId).toBe("");
   });
+
+  describe("interview mode", () => {
+    it("starts off, defaulting to mid/standard", () => {
+      const { result } = renderHook(() => usePanelState());
+      const [state] = result.current;
+      expect(state.interviewMode).toBe(false);
+      expect(state.interviewLevel).toBe("mid");
+      expect(state.pressureLevel).toBe("standard");
+      expect(state.interviewThread).toEqual([]);
+    });
+
+    it("toggles independently of learn-mode state", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewModeToggled" }));
+      expect(result.current[0].interviewMode).toBe(true);
+      act(() => result.current[1]({ type: "interviewModeToggled" }));
+      expect(result.current[0].interviewMode).toBe(false);
+    });
+
+    it("updates interviewLevel and pressureLevel independently", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewLevelChanged", interviewLevel: "principal" }));
+      act(() => result.current[1]({ type: "pressureLevelChanged", pressureLevel: "stress" }));
+
+      const [state] = result.current;
+      expect(state.interviewLevel).toBe("principal");
+      expect(state.pressureLevel).toBe("stress");
+    });
+
+    it("appends an interview entry on interviewTurnRequested and accumulates tokens into it", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "opening", codeCaptureIncomplete: false }));
+      act(() => result.current[1]({ type: "interviewChunk", chunk: { type: "token", delta: "Let's start with " } }));
+      act(() => result.current[1]({ type: "interviewChunk", chunk: { type: "token", delta: "the problem." } }));
+
+      const [state] = result.current;
+      expect(state.interviewThread).toHaveLength(1);
+      expect(state.interviewThread[0].answerText).toBe("Let's start with the problem.");
+      expect(state.interviewThread[0].phase).toBe("opening");
+      expect(state.isInterviewStreaming).toBe(true);
+    });
+
+    it("tracks interviewPhase from the most recent turn", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "opening", codeCaptureIncomplete: false }));
+      expect(result.current[0].interviewPhase).toBe("opening");
+
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "grilling", codeCaptureIncomplete: false }));
+      expect(result.current[0].interviewPhase).toBe("grilling");
+    });
+
+    it("stops interview streaming on an interview done chunk", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "opening", codeCaptureIncomplete: false }));
+      act(() => result.current[1]({ type: "interviewChunk", chunk: { type: "done" } }));
+      expect(result.current[0].isInterviewStreaming).toBe(false);
+    });
+
+    it("drops the in-flight interview entry on interviewCancelled", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "opening", codeCaptureIncomplete: false }));
+      act(() => result.current[1]({ type: "interviewChunk", chunk: { type: "token", delta: "partial" } }));
+      act(() => result.current[1]({ type: "interviewCancelled" }));
+
+      const [state] = result.current;
+      expect(state.isInterviewStreaming).toBe(false);
+      expect(state.interviewThread).toEqual([]);
+    });
+
+    it("records the message on an interview connectionError", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "opening", codeCaptureIncomplete: false }));
+      act(() => result.current[1]({ type: "interviewConnectionError", message: "lost connection" }));
+
+      const [state] = result.current;
+      expect(state.isInterviewStreaming).toBe(false);
+      expect(state.interviewThread[0].error).toBe("lost connection");
+    });
+
+    it("clears the interview thread and resets phase to opening when a different problem loads", () => {
+      const { result } = renderHook(() => usePanelState());
+      act(() =>
+        result.current[1]({
+          type: "problemLoaded",
+          problem: { slug: "two-sum", title: "Two Sum", difficulty: "Easy", tags: [], statementHtml: "", url: "" },
+        })
+      );
+      act(() => result.current[1]({ type: "interviewTurnRequested", phase: "grilling", codeCaptureIncomplete: false }));
+      expect(result.current[0].interviewThread).toHaveLength(1);
+
+      act(() =>
+        result.current[1]({
+          type: "problemLoaded",
+          problem: { slug: "three-sum", title: "3Sum", difficulty: "Medium", tags: [], statementHtml: "", url: "" },
+        })
+      );
+      expect(result.current[0].interviewThread).toEqual([]);
+      expect(result.current[0].interviewPhase).toBe("opening");
+    });
+  });
 });
