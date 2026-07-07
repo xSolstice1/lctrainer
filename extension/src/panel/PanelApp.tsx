@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
-import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo, SubmissionError } from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
@@ -25,7 +25,9 @@ export interface PanelHandle {
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
   onProblemAccepted(): void;
+  onSubmissionError(error: SubmissionError): void;
   triggerHintShortcut(): void;
+  triggerErrorShortcut(): void;
 }
 
 interface PanelAppProps {
@@ -36,6 +38,7 @@ interface PanelAppProps {
     hintLevel?: HintLevel;
     provider?: string;
     modelId?: string;
+    submissionError?: SubmissionError;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -78,8 +81,12 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       dispatch({ type: "problemAccepted" });
       setHistoryRefreshKey((k) => k + 1);
     },
+    onSubmissionError: (error) => dispatch({ type: "submissionErrorReceived", error }),
     triggerHintShortcut: () => {
       if (!state.isStreaming && state.problem) handleRequest();
+    },
+    triggerErrorShortcut: () => {
+      if (!state.isStreaming && state.submissionError) handleExplainError();
     },
   }));
 
@@ -149,6 +156,34 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     submitRequest(
       "My solution was accepted. What's the optimal approach for this problem, and how does its time/space complexity compare to mine?",
       1
+    );
+  };
+
+  const submitRequestWithError = async (userQuestion: string, hintLevel: HintLevel, submissionError: SubmissionError) => {
+    const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestHint({
+      userQuestion,
+      hintLevel,
+      provider: state.selectedProviderId || undefined,
+      modelId: state.selectedModelId || undefined,
+      submissionError,
+    });
+    dispatch({
+      type: "hintRequested",
+      codeCaptureIncomplete,
+      codeCaptureFailureReason,
+      questionOverride: userQuestion,
+      hintLevelOverride: hintLevel,
+    });
+  };
+
+  const handleExplainError = () => {
+    const error = state.submissionError;
+    if (!error) return;
+    dispatch({ type: "dismissSubmissionError" });
+    submitRequestWithError(
+      `My submission got "${error.message}". Help me understand why my approach fails without giving me the fix.`,
+      1,
+      error
     );
   };
 
@@ -320,6 +355,29 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           </div>
 
           <div className="panel-output">
+            {state.submissionError && (
+              <div className="error-offer">
+                <span>{state.submissionError.message} — want to understand why?</span>
+                <div className="error-offer-actions">
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={handleExplainError}
+                    disabled={state.isStreaming}
+                  >
+                    Explain error
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => dispatch({ type: "dismissSubmissionError" })}
+                    title="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
             {state.showAcceptedReviewOffer && (
               <div className="accepted-offer">
                 <span>Accepted! Want to review the optimal approach?</span>

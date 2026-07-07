@@ -244,6 +244,13 @@
   white-space: nowrap;
 }
 
+.danger-button {
+  background: transparent !important;
+  color: var(--danger) !important;
+  border-color: var(--danger) !important;
+  white-space: nowrap;
+}
+
 .hint-text {
   overflow-wrap: anywhere;
 }
@@ -372,6 +379,26 @@
 }
 
 .accepted-offer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.error-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.error-offer-actions {
   display: flex;
   align-items: center;
   gap: 4px;

@@ -1,4 +1,4 @@
-import type { BackgroundToContentMessage, ConversationTurn, ProblemMetadata } from "@lctrainer/shared";
+import type { BackgroundToContentMessage, ConversationTurn, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 import { connectToBackground } from "../lib/messaging.js";
 import { getSiteAdapter, type SiteAdapter } from "./sites/index.js";
 import { mountPanel } from "../panel/mount.js";
@@ -23,6 +23,7 @@ async function main() {
   let history: ConversationTurn[] = [];
   let pendingAssistantText = "";
   let lastHintCode: string | null = null;
+  let lastSubmissionError: SubmissionError | null = null;
 
   const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
 
@@ -30,7 +31,7 @@ async function main() {
     initialProviderId: stored[STORAGE_KEY_PROVIDER] ?? "",
     initialModelId: stored[STORAGE_KEY_MODEL_ID] ?? "",
 
-    onRequestHint: async ({ userQuestion, hintLevel, provider, modelId }) => {
+    onRequestHint: async ({ userQuestion, hintLevel, provider, modelId, submissionError }) => {
       let codeCaptureFailureReason: string | undefined;
       const code = await site.getCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
@@ -62,6 +63,7 @@ async function main() {
             codeChangedSinceLastHint,
             provider,
             modelId,
+            submissionError,
           },
         });
         history = [...history, { role: "user", content: userQuestion || "(requested a hint on the current code)" }];
@@ -181,6 +183,10 @@ async function main() {
     const problem = currentProblem;
     const solution = await site.getCurrentCode().catch(() => null);
     recordAccepted(problem, Date.now(), solution && solution.code ? { code: solution.code, language: solution.language } : undefined);
+  });
+  site.onError((error) => {
+    lastSubmissionError = error;
+    panel.onSubmissionError(error);
   });
 
   console.log(`[lctrainer] content script loaded on ${site.name} at`, location.pathname);

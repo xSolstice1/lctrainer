@@ -1,4 +1,4 @@
-import type { Difficulty, ProblemMetadata } from "@lctrainer/shared";
+import type { Difficulty, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 import type { SiteAdapter } from "./types.js";
 
 /**
@@ -86,10 +86,17 @@ function onAccepted(callback: () => void): () => void {
   return () => observer.disconnect();
 }
 
+// HackerRank's result panel structure is unverified — stubbed with a no-op
+// disposer until selectors are confirmed against a live page.
+function onError(_callback: (error: SubmissionError) => void): () => void {
+  return () => {};
+}
+
 export const hackerrankAdapter: SiteAdapter = {
   name: "HackerRank",
   extractProblem,
   getCurrentCode,
   onSlugChange,
   onAccepted,
+  onError,
 };

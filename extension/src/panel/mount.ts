@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { createElement, createRef } from "react";
-import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo, SubmissionError } from "@lctrainer/shared";
 import { PanelApp, type PanelHandle } from "./PanelApp.js";
 import panelStyles from "./styles.css?inline";
 
@@ -12,6 +12,7 @@ export interface MountedPanel {
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
   onProblemAccepted(): void;
+  onSubmissionError(error: SubmissionError): void;
   triggerHintShortcut(): void;
 }
 
@@ -23,6 +24,7 @@ interface MountPanelOptions {
     hintLevel?: HintLevel;
     provider?: string;
     modelId?: string;
+    submissionError?: SubmissionError;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -80,6 +82,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
     onProblemAccepted: () => ref.current?.onProblemAccepted(),
+    onSubmissionError: (error) => ref.current?.onSubmissionError(error),
     triggerHintShortcut: () => ref.current?.triggerHintShortcut(),
   };
 }
