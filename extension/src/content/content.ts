@@ -173,6 +173,7 @@ async function main() {
 
   chrome.runtime.onMessage.addListener((message: { type: string }) => {
     if (message.type === "requestHintShortcut") panel.triggerHintShortcut();
+    if (message.type === "explainErrorShortcut") panel.triggerErrorShortcut();
   });
 
   loadProblem();

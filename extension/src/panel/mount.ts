@@ -14,6 +14,7 @@ export interface MountedPanel {
   onProblemAccepted(): void;
   onSubmissionError(error: SubmissionError): void;
   triggerHintShortcut(): void;
+  triggerErrorShortcut(): void;
 }
 
 interface MountPanelOptions {
@@ -84,5 +85,6 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onProblemAccepted: () => ref.current?.onProblemAccepted(),
     onSubmissionError: (error) => ref.current?.onSubmissionError(error),
     triggerHintShortcut: () => ref.current?.triggerHintShortcut(),
+    triggerErrorShortcut: () => ref.current?.triggerErrorShortcut(),
   };
 }
