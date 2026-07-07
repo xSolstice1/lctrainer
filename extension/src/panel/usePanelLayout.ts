@@ -15,10 +15,15 @@ export type ResizeCorner = "nw" | "ne" | "sw" | "se";
 const DEFAULT_WIDTH = 340;
 const DEFAULT_HEIGHT = 480;
 
+// The sidebar is always docked to the right edge — the main panel's default
+// position and drag/resize bounds leave this much room so it never spawns
+// or gets dragged underneath it.
+export const SIDEBAR_WIDTH = 300;
+
 function defaultLayout(): PanelLayout {
   return {
     top: 80,
-    left: Math.max(0, window.innerWidth - 16 - DEFAULT_WIDTH),
+    left: Math.max(0, window.innerWidth - 16 - SIDEBAR_WIDTH - DEFAULT_WIDTH),
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
     opacity: 1,
@@ -30,9 +35,10 @@ const MIN_WIDTH = 260;
 const MIN_HEIGHT = 220;
 
 function clampLayout(layout: PanelLayout): PanelLayout {
+  const maxLeft = Math.max(0, window.innerWidth - SIDEBAR_WIDTH - layout.width);
   return {
     top: Math.max(0, layout.top),
-    left: Math.max(0, layout.left),
+    left: Math.min(maxLeft, Math.max(0, layout.left)),
     width: Math.max(MIN_WIDTH, layout.width),
     height: Math.max(MIN_HEIGHT, layout.height),
     opacity: Math.min(1, Math.max(0.2, layout.opacity)),

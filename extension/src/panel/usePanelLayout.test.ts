@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { usePanelLayout } from "./usePanelLayout.js";
+import { SIDEBAR_WIDTH, usePanelLayout } from "./usePanelLayout.js";
 
 beforeEach(() => {
   vi.stubGlobal("chrome", {
@@ -86,6 +86,14 @@ describe("usePanelLayout resize", () => {
 
     act(() => result.current.updateLayout({ opacity: -1 }));
     expect(result.current.layout.opacity).toBe(0.2);
+  });
+
+  it("clamps left so the panel never overlaps the docked sidebar", () => {
+    const { result } = renderHook(() => usePanelLayout());
+
+    act(() => result.current.updateLayout({ left: window.innerWidth }));
+
+    expect(result.current.layout.left).toBe(window.innerWidth - SIDEBAR_WIDTH - result.current.layout.width);
   });
 
   it("toggles minimized state", () => {

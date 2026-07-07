@@ -46,6 +46,18 @@ export function isLearned(record: ProblemRecord): boolean {
   return record.acceptedMs !== null;
 }
 
+/** All solved records (auto-detected or manually overridden), most recently solved first. Falls back to lastSeenMs for a manually-marked-learned record with no acceptedMs. */
+export function sortSolvedByRecency(records: ProblemRecord[]): ProblemRecord[] {
+  return records
+    .filter(isLearned)
+    .sort((a, b) => (b.acceptedMs ?? b.lastSeenMs) - (a.acceptedMs ?? a.lastSeenMs));
+}
+
+/** Every record that isn't (yet) solved, most recently seen first. */
+export function listAttempted(records: ProblemRecord[]): ProblemRecord[] {
+  return records.filter((r) => !isLearned(r)).sort((a, b) => b.lastSeenMs - a.lastSeenMs);
+}
+
 /** Groups solved problems by algorithmic pattern tag (LeetCode's own topicTags filtered to PATTERN_TAGS); problems with no recognized pattern land in "Other". A problem with multiple pattern tags appears under each. */
 export function groupSolvedByPattern(records: ProblemRecord[]): { tag: string; problems: ProblemRecord[] }[] {
   const solved = records.filter(isLearned);

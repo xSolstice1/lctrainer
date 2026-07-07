@@ -175,9 +175,12 @@ async function main() {
 
   loadProblem();
   site.onSlugChange(() => loadProblem());
-  site.onAccepted(() => {
+  site.onAccepted(async () => {
     panel.onProblemAccepted();
-    if (currentProblem) recordAccepted(currentProblem, Date.now());
+    if (!currentProblem) return;
+    const problem = currentProblem;
+    const solution = await site.getCurrentCode().catch(() => null);
+    recordAccepted(problem, Date.now(), solution && solution.code ? { code: solution.code, language: solution.language } : undefined);
   });
 
   console.log(`[lctrainer] content script loaded on ${site.name} at`, location.pathname);

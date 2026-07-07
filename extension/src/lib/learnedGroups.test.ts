@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ProblemRecord } from "./solveHistory.js";
-import { computeDayStreak, computeWeakTags, groupSolvedByPattern, isLearned } from "./learnedGroups.js";
+import {
+  computeDayStreak,
+  computeWeakTags,
+  groupSolvedByPattern,
+  isLearned,
+  listAttempted,
+  sortSolvedByRecency,
+} from "./learnedGroups.js";
 
 function record(overrides: Partial<ProblemRecord>): ProblemRecord {
   return {
@@ -13,6 +20,8 @@ function record(overrides: Partial<ProblemRecord>): ProblemRecord {
     lastSeenMs: 0,
     acceptedMs: null,
     manualStatus: null,
+    solutionCode: null,
+    solutionLanguage: null,
     ...overrides,
   };
 }
@@ -84,6 +93,38 @@ describe("groupSolvedByPattern", () => {
     ];
     const [group] = groupSolvedByPattern(records);
     expect(group.problems.map((p) => p.title)).toEqual(["Beta", "Zeta", "Alpha"]);
+  });
+});
+
+describe("sortSolvedByRecency", () => {
+  it("sorts solved problems by acceptedMs descending", () => {
+    const records = [
+      record({ slug: "a", acceptedMs: 1000 }),
+      record({ slug: "b", acceptedMs: 3000 }),
+      record({ slug: "c", acceptedMs: 2000 }),
+    ];
+    expect(sortSolvedByRecency(records).map((r) => r.slug)).toEqual(["b", "c", "a"]);
+  });
+
+  it("excludes unsolved problems", () => {
+    const records = [record({ slug: "a", acceptedMs: null }), record({ slug: "b", acceptedMs: 1000 })];
+    expect(sortSolvedByRecency(records).map((r) => r.slug)).toEqual(["b"]);
+  });
+
+  it("falls back to lastSeenMs for a manually-marked-learned problem with no acceptedMs", () => {
+    const records = [record({ slug: "a", acceptedMs: null, manualStatus: "learned", lastSeenMs: 5000 })];
+    expect(sortSolvedByRecency(records).map((r) => r.slug)).toEqual(["a"]);
+  });
+});
+
+describe("listAttempted", () => {
+  it("includes only unsolved problems, most recently seen first", () => {
+    const records = [
+      record({ slug: "a", acceptedMs: null, lastSeenMs: 1000 }),
+      record({ slug: "b", acceptedMs: 2000, lastSeenMs: 2000 }),
+      record({ slug: "c", acceptedMs: null, lastSeenMs: 3000 }),
+    ];
+    expect(listAttempted(records).map((r) => r.slug)).toEqual(["c", "a"]);
   });
 });
 

@@ -59,6 +59,26 @@ describe("solveHistory", () => {
     expect(history["two-sum"].acceptedMs).toBe(1000);
   });
 
+  it("captures solutionCode/solutionLanguage on first accept", async () => {
+    await recordAccepted(PROBLEM, 1000, { code: "def foo(): pass", language: "python" });
+    const history = await getSolveHistory();
+    expect(history["two-sum"].solutionCode).toBe("def foo(): pass");
+    expect(history["two-sum"].solutionLanguage).toBe("python");
+  });
+
+  it("does not overwrite the captured solution on a later accept", async () => {
+    await recordAccepted(PROBLEM, 1000, { code: "first", language: "python" });
+    await recordAccepted(PROBLEM, 2000, { code: "second", language: "python" });
+    const history = await getSolveHistory();
+    expect(history["two-sum"].solutionCode).toBe("first");
+  });
+
+  it("leaves solutionCode null when no solution is passed", async () => {
+    await recordAccepted(PROBLEM, 1000);
+    const history = await getSolveHistory();
+    expect(history["two-sum"].solutionCode).toBeNull();
+  });
+
   it("no-ops setManualStatus for a slug with no record", async () => {
     await setManualStatus("nonexistent", "learned");
     const history = await getSolveHistory();

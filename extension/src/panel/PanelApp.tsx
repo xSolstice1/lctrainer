@@ -3,9 +3,9 @@ import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadat
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
-import { Drawer } from "./Drawer.js";
-import { ThreadPanel } from "./ThreadPanel.js";
-import { LearnedPanel } from "./LearnedPanel.js";
+import { Sidebar } from "./Sidebar.js";
+import { SolvedPanel } from "./SolvedPanel.js";
+import { AttemptedPanel } from "./AttemptedPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 
@@ -49,7 +49,9 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const [state, dispatch] = usePanelState();
   const { theme, toggleTheme } = useTheme();
   const { layout, updateLayout, toggleMinimized, startDrag, startResize } = usePanelLayout();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Bumped on acceptance so the Solved/Attempted lists re-fetch — accepting
+  // moves the current slug between them without necessarily changing it.
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useImperativeHandle(ref, () => ({
     onProblemLoaded: (problem) => dispatch({ type: "problemLoaded", problem }),
@@ -58,7 +60,10 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onGuidanceCancelled: () => dispatch({ type: "guidanceCancelled" }),
     onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
-    onProblemAccepted: () => dispatch({ type: "problemAccepted" }),
+    onProblemAccepted: () => {
+      dispatch({ type: "problemAccepted" });
+      setHistoryRefreshKey((k) => k + 1);
+    },
     triggerHintShortcut: () => {
       if (!state.isStreaming && state.problem) handleRequest();
     },
@@ -150,6 +155,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const patternTags = (state.problem?.tags ?? []).filter((tag) => PATTERN_TAGS.has(tag));
 
   return (
+    <>
     <div
       className={`lctrainer-panel theme-${theme}${layout.minimized ? " minimized" : ""}`}
       style={{
@@ -165,15 +171,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       <div className="panel-header" onPointerDown={startDrag}>
         <span className="panel-title">Leetcode Trainer</span>
         <div className="panel-header-actions">
-          <button
-            type="button"
-            className="icon-button"
-            title="Open history"
-            onClick={() => setDrawerOpen(true)}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            ☰
-          </button>
           <button
             type="button"
             className="icon-button"
@@ -343,25 +340,36 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           <div className="resize-handle resize-handle-ne" onPointerDown={(e) => startResize(e, "ne")} />
           <div className="resize-handle resize-handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
           <div className="resize-handle resize-handle-se" onPointerDown={(e) => startResize(e, "se")} />
-
-          <Drawer
-            open={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            problemTab={
-              <ThreadPanel
-                thread={state.thread}
-                onReuseQuestion={(question, hintLevel) => {
-                  dispatch({ type: "questionTextChanged", text: question });
-                  dispatch({ type: "hintLevelChanged", hintLevel });
-                  setDrawerOpen(false);
-                }}
-                onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
-              />
-            }
-            learnedTab={<LearnedPanel />}
-          />
         </>
       )}
     </div>
+    <Sidebar
+      theme={theme}
+      solvedTab={
+        <SolvedPanel
+          currentSlug={state.problem?.slug}
+          refreshKey={historyRefreshKey}
+          liveThread={state.thread}
+          onReuseQuestion={(question, hintLevel) => {
+            dispatch({ type: "questionTextChanged", text: question });
+            dispatch({ type: "hintLevelChanged", hintLevel });
+          }}
+          onDeleteCurrentEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
+        />
+      }
+      attemptedTab={
+        <AttemptedPanel
+          currentSlug={state.problem?.slug}
+          refreshKey={historyRefreshKey}
+          liveThread={state.thread}
+          onReuseQuestion={(question, hintLevel) => {
+            dispatch({ type: "questionTextChanged", text: question });
+            dispatch({ type: "hintLevelChanged", hintLevel });
+          }}
+          onDeleteCurrentEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
+        />
+      }
+    />
+    </>
   );
 });
