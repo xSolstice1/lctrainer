@@ -8,39 +8,27 @@ import type { ThreadEntry } from "./usePanelState.js";
 interface ProblemHistoryRowProps {
   record: ProblemRecord;
   isCurrent: boolean;
-  liveThread: ThreadEntry[];
   showCode: boolean;
-  onReuseQuestion?: (question: string, hintLevel: HintLevel) => void;
-  onDeleteCurrentEntry?: (index: number) => void;
+  onReuseQuestion: (question: string, hintLevel: HintLevel) => void;
   onToggleStatus: (record: ProblemRecord) => void;
 }
 
-export function ProblemHistoryRow({
-  record,
-  isCurrent,
-  liveThread,
-  showCode,
-  onReuseQuestion,
-  onDeleteCurrentEntry,
-  onToggleStatus,
-}: ProblemHistoryRowProps) {
-  const [expanded, setExpanded] = useState(isCurrent);
-  const [historyThread, setHistoryThread] = useState<ThreadEntry[] | null>(null);
+// Sidebar rows are reference-only — the live, actively-streaming thread lives
+// in the main panel below the hint controls. Every row here (including the
+// current problem's) reads its thread from the cache and starts collapsed;
+// the user opens one deliberately to look back at it.
+export function ProblemHistoryRow({ record, isCurrent, showCode, onReuseQuestion, onToggleStatus }: ProblemHistoryRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [thread, setThread] = useState<ThreadEntry[] | null>(null);
 
   useEffect(() => {
-    if (isCurrent) setExpanded(true);
-  }, [isCurrent]);
+    if (!expanded || thread !== null) return;
+    loadThread(record.slug).then((entries) => setThread(entries ?? []));
+  }, [expanded, thread, record.slug]);
 
-  useEffect(() => {
-    if (isCurrent || !expanded || historyThread !== null) return;
-    loadThread(record.slug).then((entries) => setHistoryThread(entries ?? []));
-  }, [isCurrent, expanded, historyThread, record.slug]);
-
-  const thread = isCurrent ? liveThread : historyThread ?? [];
-
-  const handleDeleteHistoryEntry = (index: number) => {
-    const next = thread.filter((_, i) => i !== index);
-    setHistoryThread(next);
+  const handleDeleteEntry = (index: number) => {
+    const next = (thread ?? []).filter((_, i) => i !== index);
+    setThread(next);
     saveThread(record.slug, next, Date.now());
   };
 
@@ -82,11 +70,7 @@ export function ProblemHistoryRow({
               </pre>
             </div>
           )}
-          <ThreadPanel
-            thread={thread}
-            onReuseQuestion={onReuseQuestion ?? (() => {})}
-            onDeleteEntry={isCurrent ? onDeleteCurrentEntry ?? (() => {}) : handleDeleteHistoryEntry}
-          />
+          <ThreadPanel thread={thread ?? []} onReuseQuestion={onReuseQuestion} onDeleteEntry={handleDeleteEntry} />
         </div>
       )}
     </div>

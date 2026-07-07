@@ -6,6 +6,7 @@ import { usePanelLayout } from "./usePanelLayout.js";
 import { Sidebar } from "./Sidebar.js";
 import { SolvedPanel } from "./SolvedPanel.js";
 import { AttemptedPanel } from "./AttemptedPanel.js";
+import { ThreadPanel } from "./ThreadPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 
@@ -48,7 +49,20 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 ) {
   const [state, dispatch] = usePanelState();
   const { theme, toggleTheme } = useTheme();
-  const { layout, updateLayout, toggleMinimized, startDrag, startResize, startSidebarResize } = usePanelLayout();
+  const {
+    layout,
+    updateLayout,
+    toggleMinimized,
+    toggleSidebarCollapsed,
+    startDrag,
+    startResize,
+    startWestEdgeResize,
+    startEastEdgeResize,
+    startNorthEdgeResize,
+    startSouthEdgeResize,
+    startSeamResize,
+    startSidebarCorner,
+  } = usePanelLayout();
   // Bumped on acceptance so the Solved/Attempted lists re-fetch — accepting
   // moves the current slug between them without necessarily changing it.
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -330,6 +344,14 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                 {state.codeCaptureFailureReason ? `: ${state.codeCaptureFailureReason}.` : "."}
               </div>
             )}
+            <ThreadPanel
+              thread={state.thread}
+              onReuseQuestion={(question, hintLevel) => {
+                dispatch({ type: "questionTextChanged", text: question });
+                dispatch({ type: "hintLevelChanged", hintLevel });
+              }}
+              onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
+            />
           </div>
 
           <div className="panel-footer">
@@ -337,9 +359,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           </div>
 
           <div className="resize-handle resize-handle-nw" onPointerDown={(e) => startResize(e, "nw")} />
-          <div className="resize-handle resize-handle-ne" onPointerDown={(e) => startResize(e, "ne")} />
           <div className="resize-handle resize-handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
-          <div className="resize-handle resize-handle-se" onPointerDown={(e) => startResize(e, "se")} />
+          <div className="edge-resize-handle edge-resize-handle-n" onPointerDown={startNorthEdgeResize} />
+          <div className="edge-resize-handle edge-resize-handle-w" onPointerDown={startWestEdgeResize} />
+          <div className="edge-resize-handle edge-resize-handle-s" onPointerDown={startSouthEdgeResize} />
+          {!layout.sidebarCollapsed && (
+            <div className="edge-resize-handle edge-resize-handle-seam" onPointerDown={startSeamResize} />
+          )}
         </>
       )}
     </div>
@@ -349,29 +375,30 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       left={layout.left + layout.width}
       width={layout.sidebarWidth}
       height={layout.minimized ? 44 : layout.height}
-      onResizeStart={startSidebarResize}
+      collapsed={layout.sidebarCollapsed}
+      onToggleCollapsed={toggleSidebarCollapsed}
+      onEastEdgeResizeStart={startEastEdgeResize}
+      onNorthEdgeResizeStart={startNorthEdgeResize}
+      onSouthEdgeResizeStart={startSouthEdgeResize}
+      onCornerResizeStart={startSidebarCorner}
       solvedTab={
         <SolvedPanel
           currentSlug={state.problem?.slug}
           refreshKey={historyRefreshKey}
-          liveThread={state.thread}
           onReuseQuestion={(question, hintLevel) => {
             dispatch({ type: "questionTextChanged", text: question });
             dispatch({ type: "hintLevelChanged", hintLevel });
           }}
-          onDeleteCurrentEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
         />
       }
       attemptedTab={
         <AttemptedPanel
           currentSlug={state.problem?.slug}
           refreshKey={historyRefreshKey}
-          liveThread={state.thread}
           onReuseQuestion={(question, hintLevel) => {
             dispatch({ type: "questionTextChanged", text: question });
             dispatch({ type: "hintLevelChanged", hintLevel });
           }}
-          onDeleteCurrentEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
         />
       }
     />

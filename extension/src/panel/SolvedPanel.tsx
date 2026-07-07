@@ -3,19 +3,16 @@ import type { HintLevel } from "@lctrainer/shared";
 import { getSolveHistory, setManualStatus, type ProblemRecord } from "../lib/solveHistory.js";
 import { groupSolvedByPattern, sortSolvedByRecency } from "../lib/learnedGroups.js";
 import { ProblemHistoryRow } from "./ProblemHistoryRow.js";
-import type { ThreadEntry } from "./usePanelState.js";
 
 type SortMode = "pattern" | "recent";
 
 interface SolvedPanelProps {
   currentSlug: string | undefined;
   refreshKey: number;
-  liveThread: ThreadEntry[];
   onReuseQuestion: (question: string, hintLevel: HintLevel) => void;
-  onDeleteCurrentEntry: (index: number) => void;
 }
 
-export function SolvedPanel({ currentSlug, refreshKey, liveThread, onReuseQuestion, onDeleteCurrentEntry }: SolvedPanelProps) {
+export function SolvedPanel({ currentSlug, refreshKey, onReuseQuestion }: SolvedPanelProps) {
   const [records, setRecords] = useState<ProblemRecord[] | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("pattern");
 
@@ -40,10 +37,8 @@ export function SolvedPanel({ currentSlug, refreshKey, liveThread, onReuseQuesti
       key={p.slug}
       record={p}
       isCurrent={p.slug === currentSlug}
-      liveThread={liveThread}
       showCode
       onReuseQuestion={onReuseQuestion}
-      onDeleteCurrentEntry={onDeleteCurrentEntry}
       onToggleStatus={handleToggle}
     />
   );

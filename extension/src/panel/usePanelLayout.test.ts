@@ -93,18 +93,51 @@ describe("usePanelLayout resize", () => {
     expect(result.current.layout.sidebarWidth).toBe(DEFAULT_SIDEBAR_WIDTH);
   });
 
-  it("grows the sidebar when its resize handle is dragged leftward", () => {
+  it("grows the sidebar when its outer east edge is dragged rightward", () => {
     const { result } = renderHook(() => usePanelLayout());
     const startWidth = result.current.layout.sidebarWidth;
 
     act(() => {
       const startEvent = pointerEvent({ clientX: 200 });
-      result.current.startSidebarResize(startEvent);
+      result.current.startEastEdgeResize(startEvent);
       const target = startEvent.currentTarget;
-      target.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 150 }));
+      target.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 250 }));
     });
 
     expect(result.current.layout.sidebarWidth).toBe(startWidth + 50);
+  });
+
+  it("redistributes width across the seam: panel grows, sidebar shrinks by the same amount", () => {
+    const { result } = renderHook(() => usePanelLayout());
+    const startPanelWidth = result.current.layout.width;
+    const startSidebarWidth = result.current.layout.sidebarWidth;
+
+    act(() => {
+      const startEvent = pointerEvent({ clientX: 200 });
+      result.current.startSeamResize(startEvent);
+      const target = startEvent.currentTarget;
+      target.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 230 }));
+    });
+
+    expect(result.current.layout.width).toBe(startPanelWidth + 30);
+    expect(result.current.layout.sidebarWidth).toBe(startSidebarWidth - 30);
+  });
+
+  it("sidebar's ne/se corners resize height and sidebarWidth together, anchoring the opposite edge", () => {
+    const { result } = renderHook(() => usePanelLayout());
+    const start = result.current.layout;
+
+    act(() => {
+      const startEvent = pointerEvent({ clientX: 200, clientY: 200 });
+      result.current.startSidebarCorner(startEvent, "se");
+      const target = startEvent.currentTarget;
+      target.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 230, clientY: 240 }));
+    });
+
+    const next = result.current.layout;
+    expect(next.sidebarWidth).toBe(start.sidebarWidth + 30);
+    expect(next.height).toBe(start.height + 40);
+    expect(next.top).toBe(start.top);
   });
 
   it("clamps sidebarWidth to its min/max bounds", () => {

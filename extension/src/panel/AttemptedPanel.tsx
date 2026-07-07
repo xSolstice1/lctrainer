@@ -3,17 +3,14 @@ import type { HintLevel } from "@lctrainer/shared";
 import { getSolveHistory, setManualStatus, type ProblemRecord } from "../lib/solveHistory.js";
 import { listAttempted } from "../lib/learnedGroups.js";
 import { ProblemHistoryRow } from "./ProblemHistoryRow.js";
-import type { ThreadEntry } from "./usePanelState.js";
 
 interface AttemptedPanelProps {
   currentSlug: string | undefined;
   refreshKey: number;
-  liveThread: ThreadEntry[];
   onReuseQuestion: (question: string, hintLevel: HintLevel) => void;
-  onDeleteCurrentEntry: (index: number) => void;
 }
 
-export function AttemptedPanel({ currentSlug, refreshKey, liveThread, onReuseQuestion, onDeleteCurrentEntry }: AttemptedPanelProps) {
+export function AttemptedPanel({ currentSlug, refreshKey, onReuseQuestion }: AttemptedPanelProps) {
   const [records, setRecords] = useState<ProblemRecord[] | null>(null);
 
   useEffect(() => {
@@ -40,10 +37,8 @@ export function AttemptedPanel({ currentSlug, refreshKey, liveThread, onReuseQue
           key={p.slug}
           record={p}
           isCurrent={p.slug === currentSlug}
-          liveThread={liveThread}
           showCode={false}
           onReuseQuestion={onReuseQuestion}
-          onDeleteCurrentEntry={onDeleteCurrentEntry}
           onToggleStatus={handleToggle}
         />
       ))}
