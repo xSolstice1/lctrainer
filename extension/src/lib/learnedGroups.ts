@@ -39,9 +39,16 @@ export function computeWeakTags(
     .slice(0, limit);
 }
 
+/** A problem counts as learned if accepted, unless the user has manually marked it not-learned; manually marking it learned counts it even without an acceptance. */
+export function isLearned(record: ProblemRecord): boolean {
+  if (record.manualStatus === "not-learned") return false;
+  if (record.manualStatus === "learned") return true;
+  return record.acceptedMs !== null;
+}
+
 /** Groups solved problems by algorithmic pattern tag (LeetCode's own topicTags filtered to PATTERN_TAGS); problems with no recognized pattern land in "Other". A problem with multiple pattern tags appears under each. */
 export function groupSolvedByPattern(records: ProblemRecord[]): { tag: string; problems: ProblemRecord[] }[] {
-  const solved = records.filter((r) => r.acceptedMs !== null);
+  const solved = records.filter(isLearned);
   const byTag = new Map<string, ProblemRecord[]>();
 
   for (const r of solved) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProblemRecord } from "./solveHistory.js";
-import { computeDayStreak, computeWeakTags, groupSolvedByPattern } from "./learnedGroups.js";
+import { computeDayStreak, computeWeakTags, groupSolvedByPattern, isLearned } from "./learnedGroups.js";
 
 function record(overrides: Partial<ProblemRecord>): ProblemRecord {
   return {
@@ -12,9 +12,28 @@ function record(overrides: Partial<ProblemRecord>): ProblemRecord {
     firstSeenMs: 0,
     lastSeenMs: 0,
     acceptedMs: null,
+    manualStatus: null,
     ...overrides,
   };
 }
+
+describe("isLearned", () => {
+  it("is true when accepted and no manual override", () => {
+    expect(isLearned(record({ acceptedMs: 1000 }))).toBe(true);
+  });
+
+  it("is false when unaccepted and no manual override", () => {
+    expect(isLearned(record({ acceptedMs: null }))).toBe(false);
+  });
+
+  it("manual not-learned overrides an acceptance", () => {
+    expect(isLearned(record({ acceptedMs: 1000, manualStatus: "not-learned" }))).toBe(false);
+  });
+
+  it("manual learned overrides no acceptance", () => {
+    expect(isLearned(record({ acceptedMs: null, manualStatus: "learned" }))).toBe(true);
+  });
+});
 
 describe("groupSolvedByPattern", () => {
   it("only includes accepted problems", () => {
@@ -24,6 +43,16 @@ describe("groupSolvedByPattern", () => {
     ];
     const groups = groupSolvedByPattern(records);
     expect(groups).toEqual([{ tag: "Dynamic Programming", problems: [records[0]] }]);
+  });
+
+  it("includes a manually-marked-learned problem even without an acceptance", () => {
+    const records = [record({ slug: "a", tags: ["Greedy"], acceptedMs: null, manualStatus: "learned" })];
+    expect(groupSolvedByPattern(records)).toEqual([{ tag: "Greedy", problems: [records[0]] }]);
+  });
+
+  it("excludes a manually-marked-not-learned problem even when accepted", () => {
+    const records = [record({ slug: "a", tags: ["Greedy"], acceptedMs: 1000, manualStatus: "not-learned" })];
+    expect(groupSolvedByPattern(records)).toEqual([]);
   });
 
   it("buckets a problem under every matching pattern tag", () => {

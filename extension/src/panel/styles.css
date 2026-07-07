@@ -541,6 +541,13 @@
   white-space: nowrap;
 }
 
+.learned-status-toggle {
+  flex-shrink: 0;
+  padding: 1px 6px !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+}
+
 /* --- Drawer (slide-out history / learned panel) --- */
 
 .drawer {

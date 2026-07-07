@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSolveHistory, recordAccepted, recordHintUsed, recordProblemSeen } from "./solveHistory.js";
+import { getSolveHistory, recordAccepted, recordHintUsed, recordProblemSeen, setManualStatus } from "./solveHistory.js";
 
 function makeStorage() {
   const store: Record<string, unknown> = {};
@@ -49,6 +49,20 @@ describe("solveHistory", () => {
     await recordAccepted(PROBLEM, 5000);
     const history = await getSolveHistory();
     expect(history["two-sum"].acceptedMs).toBe(1000);
+  });
+
+  it("sets manualStatus on an existing record and leaves acceptedMs untouched", async () => {
+    await recordAccepted(PROBLEM, 1000);
+    await setManualStatus("two-sum", "not-learned");
+    const history = await getSolveHistory();
+    expect(history["two-sum"].manualStatus).toBe("not-learned");
+    expect(history["two-sum"].acceptedMs).toBe(1000);
+  });
+
+  it("no-ops setManualStatus for a slug with no record", async () => {
+    await setManualStatus("nonexistent", "learned");
+    const history = await getSolveHistory();
+    expect(history["nonexistent"]).toBeUndefined();
   });
 
   it("tracks separate problems independently", async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSolveHistory, type ProblemRecord } from "../lib/solveHistory.js";
+import { getSolveHistory, setManualStatus, type ProblemRecord } from "../lib/solveHistory.js";
 import { groupSolvedByPattern } from "../lib/learnedGroups.js";
 
 export function LearnedPanel() {
@@ -8,6 +8,14 @@ export function LearnedPanel() {
   useEffect(() => {
     getSolveHistory().then((history) => setRecords(Object.values(history)));
   }, []);
+
+  const handleToggle = async (record: ProblemRecord) => {
+    // Cycle: auto → forced learned → forced not-learned → back to auto.
+    const next =
+      record.manualStatus === null ? "learned" : record.manualStatus === "learned" ? "not-learned" : null;
+    await setManualStatus(record.slug, next);
+    setRecords((prev) => prev?.map((r) => (r.slug === record.slug ? { ...r, manualStatus: next } : r)) ?? prev);
+  };
 
   if (!records) return null;
   const groups = groupSolvedByPattern(records);
@@ -30,6 +38,20 @@ export function LearnedPanel() {
                 <span className="learned-meta">
                   {p.difficulty} · {p.hintCount} hint{p.hintCount === 1 ? "" : "s"}
                 </span>
+                <button
+                  type="button"
+                  className="icon-button learned-status-toggle"
+                  title={
+                    p.manualStatus === "learned"
+                      ? "Manually marked learned — click to mark not learned"
+                      : p.manualStatus === "not-learned"
+                        ? "Manually marked not learned — click to reset to auto"
+                        : "Auto-detected from acceptance — click to mark learned"
+                  }
+                  onClick={() => handleToggle(p)}
+                >
+                  {p.manualStatus === "learned" ? "✓ manual" : p.manualStatus === "not-learned" ? "✕ manual" : "auto"}
+                </button>
               </li>
             ))}
           </ul>

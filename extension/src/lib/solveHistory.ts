@@ -9,6 +9,8 @@ export interface ProblemRecord {
   firstSeenMs: number;
   lastSeenMs: number;
   acceptedMs: number | null;
+  /** User override of learned status, independent of acceptedMs. Null means "use the auto-detected status". */
+  manualStatus: "learned" | "not-learned" | null;
 }
 
 export type SolveHistory = Record<string, ProblemRecord>;
@@ -45,6 +47,7 @@ function ensureRecord(
     firstSeenMs: nowMs,
     lastSeenMs: nowMs,
     acceptedMs: null,
+    manualStatus: null,
   };
   history[problem.slug] = record;
   return record;
@@ -73,5 +76,12 @@ export async function recordAccepted(
   await updateHistory((history) => {
     const record = ensureRecord(history, problem, nowMs);
     if (record.acceptedMs === null) record.acceptedMs = nowMs;
+  });
+}
+
+export async function setManualStatus(slug: string, status: "learned" | "not-learned" | null): Promise<void> {
+  await updateHistory((history) => {
+    const record = history[slug];
+    if (record) record.manualStatus = status;
   });
 }
