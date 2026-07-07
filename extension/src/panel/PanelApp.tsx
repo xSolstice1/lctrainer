@@ -1,9 +1,10 @@
-import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
 import { usePanelState } from "./usePanelState.js";
 import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
 import { HintRenderer } from "./HintRenderer.js";
+import { Drawer } from "./Drawer.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 
@@ -47,6 +48,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const [state, dispatch] = usePanelState();
   const { theme, toggleTheme } = useTheme();
   const { layout, updateLayout, toggleMinimized, startDrag, startResize } = usePanelLayout();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useImperativeHandle(ref, () => ({
     onProblemLoaded: (problem) => dispatch({ type: "problemLoaded", problem }),
@@ -162,6 +164,15 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       <div className="panel-header" onPointerDown={startDrag}>
         <span className="panel-title">Leetcode Trainer</span>
         <div className="panel-header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            title="Open history"
+            onClick={() => setDrawerOpen(true)}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            ☰
+          </button>
           <button
             type="button"
             className="icon-button"
@@ -362,6 +373,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           <div className="resize-handle resize-handle-ne" onPointerDown={(e) => startResize(e, "ne")} />
           <div className="resize-handle resize-handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
           <div className="resize-handle resize-handle-se" onPointerDown={(e) => startResize(e, "se")} />
+
+          <Drawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            problemTab={<p className="hint">This problem's history moves here next.</p>}
+            learnedTab={<p className="hint">The Learned board moves here next.</p>}
+          />
         </>
       )}
     </div>
