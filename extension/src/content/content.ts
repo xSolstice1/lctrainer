@@ -167,8 +167,11 @@ async function main() {
       lastHintCode = null;
     }
     currentProblem = problem;
+    // Write solve-history before notifying the panel — the Solved/Attempted
+    // sidebar refetches storage as soon as it sees the new slug, so if the
+    // write landed after that refetch the sidebar would show stale data.
+    if (currentProblem) await recordProblemSeen(currentProblem, Date.now());
     panel.onProblemLoaded(currentProblem);
-    if (currentProblem) recordProblemSeen(currentProblem, Date.now());
   }
 
   chrome.runtime.onMessage.addListener((message: { type: string }) => {
@@ -179,11 +182,17 @@ async function main() {
   loadProblem();
   site.onSlugChange(() => loadProblem());
   site.onAccepted(async () => {
-    panel.onProblemAccepted();
-    if (!currentProblem) return;
+    if (!currentProblem) {
+      panel.onProblemAccepted();
+      return;
+    }
     const problem = currentProblem;
     const solution = await site.getCurrentCode().catch(() => null);
-    recordAccepted(problem, Date.now(), solution && solution.code ? { code: solution.code, language: solution.language } : undefined);
+    // Same ordering concern as loadProblem: write before notifying, so the
+    // sidebar's refetch (triggered by onProblemAccepted) sees the accepted
+    // status instead of racing the storage write.
+    await recordAccepted(problem, Date.now(), solution && solution.code ? { code: solution.code, language: solution.language } : undefined);
+    panel.onProblemAccepted();
   });
   site.onError((error) => {
     lastSubmissionError = error;
