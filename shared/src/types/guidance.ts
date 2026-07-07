@@ -11,6 +11,16 @@ export interface ConversationTurn {
   content: string;
 }
 
+export type SubmissionErrorKind = "wrong_answer" | "runtime_error" | "time_limit_exceeded" | "other";
+
+export interface SubmissionError {
+  kind: SubmissionErrorKind;
+  /** Headline text from data-e2e-locator="console-result", e.g. "Wrong Answer" */
+  message: string;
+  /** Scraped detail: failing input, expected/actual output, or error trace. Empty string if capture failed. */
+  detail: string;
+}
+
 export interface GuidanceRequest {
   sessionId: string;
   /** Unique per hint request; echoed back on chunks/errors so a stale or superseded request can be ignored. */
@@ -28,6 +38,8 @@ export interface GuidanceRequest {
   provider?: LLMProviderId;
   /** Overrides the selected provider's default model ID for this request, if set. */
   modelId?: string;
+  /** Present when the user triggered "Explain error" after a failed submission. */
+  submissionError?: SubmissionError;
 }
 
 export interface TokenUsage {

@@ -1,4 +1,4 @@
-import type { HintLevel, ProblemMetadata } from "@lctrainer/shared";
+import type { HintLevel, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 
 const CONTINUATION_NOTE =
   "If prior turns are included below, this is a continuing conversation about the same problem — build on what you already told them rather than repeating it, and notice when their code has changed since your last hint.";
@@ -11,8 +11,29 @@ const CONTINUATION_NOTE =
  * hintLevel: 0 = smallest nudge, 1 = Socratic hint (default), 2 = pseudocode
  * outline, 3 = full working solution.
  */
-export function buildSystemPrompt(problem: ProblemMetadata, hintLevel: HintLevel = 1): string {
+export function buildSystemPrompt(
+  problem: ProblemMetadata,
+  hintLevel: HintLevel = 1,
+  submissionError?: SubmissionError
+): string {
   const tagsLine = `Problem tags: ${problem.tags.join(", ") || "none"}.`;
+
+  if (submissionError) {
+    const detailSection = submissionError.detail
+      ? `\nSubmission details:\n${submissionError.detail}`
+      : "";
+    return `You are a Socratic coding tutor helping someone practice the LeetCode problem "${problem.title}" (${problem.difficulty}).
+
+The user's code just produced a submission error: ${submissionError.message}.${detailSection}
+
+Your job is to help them understand WHY their approach fails — not to fix it for them:
+- Ask guiding questions that lead them to discover the flaw themselves.
+- Point out what the failing input reveals about their logic without stating the fix directly.
+- NEVER write or output corrected code, a full solution, or pseudocode that solves the problem.
+- Keep your response concise — 2-4 sentences or a short list of questions.
+
+${tagsLine}`;
+  }
 
   if (hintLevel === 3) {
     return `You are a coding tutor helping someone with the LeetCode problem "${problem.title}" (${problem.difficulty}).
