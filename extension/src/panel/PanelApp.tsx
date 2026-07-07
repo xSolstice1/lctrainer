@@ -5,6 +5,7 @@ import { useTheme } from "../lib/useTheme.js";
 import { usePanelLayout } from "./usePanelLayout.js";
 import { Drawer } from "./Drawer.js";
 import { ThreadPanel } from "./ThreadPanel.js";
+import { LearnedPanel } from "./LearnedPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 
@@ -357,7 +358,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                 onDeleteEntry={(index) => dispatch({ type: "threadEntryDeleted", index })}
               />
             }
-            learnedTab={<p className="hint">The Learned board moves here next.</p>}
+            learnedTab={<LearnedPanel />}
           />
         </>
       )}

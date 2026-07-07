@@ -10,7 +10,7 @@ import {
 import { describeFetchError, fetchWithTimeout } from "../lib/fetchWithTimeout.js";
 import { useTheme } from "../lib/useTheme.js";
 import { getSolveHistory, type ProblemRecord } from "../lib/solveHistory.js";
-import { computeDayStreak, computeWeakTags, groupSolvedByPattern } from "../lib/learnedGroups.js";
+import { computeDayStreak, computeWeakTags } from "../lib/learnedGroups.js";
 import "./options.css";
 
 type ConnectionStatus = { state: "idle" } | { state: "testing" } | { state: "ok" } | { state: "error"; message: string };
@@ -19,46 +19,6 @@ type ModelsStatus =
   | { state: "loading" }
   | { state: "loaded"; models: ModelInfo[] }
   | { state: "error"; message: string };
-
-function LearnedSection() {
-  const [records, setRecords] = useState<ProblemRecord[] | null>(null);
-
-  useEffect(() => {
-    getSolveHistory().then((history) => setRecords(Object.values(history)));
-  }, []);
-
-  if (!records) return null;
-  const groups = groupSolvedByPattern(records);
-
-  return (
-    <div className="options-stats">
-      <h3>What you've learned</h3>
-      {groups.length === 0 ? (
-        <p className="hint">Solved problems will show up here, grouped by pattern.</p>
-      ) : (
-        <div className="learned-groups">
-          {groups.map((g) => (
-            <details className="learned-group" key={g.tag} open={groups.length <= 3}>
-              <summary>
-                {g.tag} <span className="learned-count">({g.problems.length})</span>
-              </summary>
-              <ul>
-                {g.problems.map((p) => (
-                  <li key={p.slug} className={`difficulty-${p.difficulty.toLowerCase()}`}>
-                    <span className="learned-title">{p.title}</span>
-                    <span className="learned-meta">
-                      {p.difficulty} · {p.hintCount} hint{p.hintCount === 1 ? "" : "s"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StatsSection() {
   const [records, setRecords] = useState<ProblemRecord[] | null>(null);
@@ -278,7 +238,6 @@ function OptionsApp() {
       {status.state === "error" && <p className="error">Connection failed: {status.message}</p>}
 
       <StatsSection />
-      <LearnedSection />
 
       <div className="options-footer">Made by Vectr Labs</div>
     </div>
