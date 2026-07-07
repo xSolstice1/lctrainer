@@ -23,6 +23,12 @@ const TAB_LABELS: Record<SidebarTabId, string> = {
   attempted: "Attempted",
 };
 
+// Collapsed width of the drawer-style strip left docked to the panel — just
+// enough for the expand handle, no header/tabs. Its left edge stays pinned
+// to the panel's right edge, so shrinking to this width reads as the
+// sidebar sliding back into the panel rather than just hiding its content.
+const COLLAPSED_WIDTH = 22;
+
 export function Sidebar({
   theme,
   top,
@@ -40,10 +46,25 @@ export function Sidebar({
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTabId>("solved");
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        className={`sidebar sidebar-collapsed lctrainer-panel theme-${theme}`}
+        style={{ position: "fixed", top, left, width: COLLAPSED_WIDTH, height, pointerEvents: "auto" }}
+        onPointerDown={(e) => e.stopPropagation()}
+        title="Expand sidebar"
+        onClick={onToggleCollapsed}
+      >
+        ◂
+      </button>
+    );
+  }
+
   return (
     <div
-      className={`sidebar lctrainer-panel theme-${theme}${collapsed ? " collapsed" : ""}`}
-      style={{ position: "fixed", top, left, width, height: collapsed ? undefined : height, pointerEvents: "auto" }}
+      className={`sidebar lctrainer-panel theme-${theme}`}
+      style={{ position: "fixed", top, left, width, height, pointerEvents: "auto" }}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="sidebar-header">
@@ -59,25 +80,16 @@ export function Sidebar({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className="icon-button"
-          title={collapsed ? "Expand" : "Collapse"}
-          onClick={onToggleCollapsed}
-        >
-          {collapsed ? "◂" : "▸"}
+        <button type="button" className="icon-button" title="Collapse" onClick={onToggleCollapsed}>
+          ▸
         </button>
       </div>
-      {!collapsed && (
-        <>
-          <div className="sidebar-body">{activeTab === "solved" ? solvedTab : attemptedTab}</div>
-          <div className="edge-resize-handle edge-resize-handle-n" onPointerDown={onNorthEdgeResizeStart} />
-          <div className="edge-resize-handle edge-resize-handle-e" onPointerDown={onEastEdgeResizeStart} />
-          <div className="edge-resize-handle edge-resize-handle-s" onPointerDown={onSouthEdgeResizeStart} />
-          <div className="resize-handle resize-handle-ne" onPointerDown={(e) => onCornerResizeStart(e, "ne")} />
-          <div className="resize-handle resize-handle-se" onPointerDown={(e) => onCornerResizeStart(e, "se")} />
-        </>
-      )}
+      <div className="sidebar-body">{activeTab === "solved" ? solvedTab : attemptedTab}</div>
+      <div className="edge-resize-handle edge-resize-handle-n" onPointerDown={onNorthEdgeResizeStart} />
+      <div className="edge-resize-handle edge-resize-handle-e" onPointerDown={onEastEdgeResizeStart} />
+      <div className="edge-resize-handle edge-resize-handle-s" onPointerDown={onSouthEdgeResizeStart} />
+      <div className="resize-handle resize-handle-ne" onPointerDown={(e) => onCornerResizeStart(e, "ne")} />
+      <div className="resize-handle resize-handle-se" onPointerDown={(e) => onCornerResizeStart(e, "se")} />
     </div>
   );
 }
