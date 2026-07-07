@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { SIDEBAR_WIDTH, usePanelLayout } from "./usePanelLayout.js";
+import { DEFAULT_SIDEBAR_WIDTH, usePanelLayout } from "./usePanelLayout.js";
 
 beforeEach(() => {
   vi.stubGlobal("chrome", {
@@ -88,12 +88,33 @@ describe("usePanelLayout resize", () => {
     expect(result.current.layout.opacity).toBe(0.2);
   });
 
-  it("clamps left so the panel never overlaps the docked sidebar", () => {
+  it("starts with the default sidebar width", () => {
+    const { result } = renderHook(() => usePanelLayout());
+    expect(result.current.layout.sidebarWidth).toBe(DEFAULT_SIDEBAR_WIDTH);
+  });
+
+  it("grows the sidebar when its resize handle is dragged leftward", () => {
+    const { result } = renderHook(() => usePanelLayout());
+    const startWidth = result.current.layout.sidebarWidth;
+
+    act(() => {
+      const startEvent = pointerEvent({ clientX: 200 });
+      result.current.startSidebarResize(startEvent);
+      const target = startEvent.currentTarget;
+      target.dispatchEvent(Object.assign(new Event("pointermove"), { clientX: 150 }));
+    });
+
+    expect(result.current.layout.sidebarWidth).toBe(startWidth + 50);
+  });
+
+  it("clamps sidebarWidth to its min/max bounds", () => {
     const { result } = renderHook(() => usePanelLayout());
 
-    act(() => result.current.updateLayout({ left: window.innerWidth }));
+    act(() => result.current.updateLayout({ sidebarWidth: 10 }));
+    expect(result.current.layout.sidebarWidth).toBe(220);
 
-    expect(result.current.layout.left).toBe(window.innerWidth - SIDEBAR_WIDTH - result.current.layout.width);
+    act(() => result.current.updateLayout({ sidebarWidth: 9999 }));
+    expect(result.current.layout.sidebarWidth).toBe(480);
   });
 
   it("toggles minimized state", () => {

@@ -4,6 +4,11 @@ export type SidebarTabId = "solved" | "attempted";
 
 interface SidebarProps {
   theme: "dark" | "light";
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  onResizeStart: (e: React.PointerEvent<HTMLElement>) => void;
   solvedTab: ReactNode;
   attemptedTab: ReactNode;
 }
@@ -13,15 +18,16 @@ const TAB_LABELS: Record<SidebarTabId, string> = {
   attempted: "Attempted",
 };
 
-export function Sidebar({ theme, solvedTab, attemptedTab }: SidebarProps) {
+export function Sidebar({ theme, top, left, width, height, onResizeStart, solvedTab, attemptedTab }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTabId>("solved");
 
   return (
     <div
       className={`sidebar lctrainer-panel theme-${theme}`}
-      style={{ pointerEvents: "auto" }}
+      style={{ position: "fixed", top, left, width, height, pointerEvents: "auto" }}
       onPointerDown={(e) => e.stopPropagation()}
     >
+      <div className="sidebar-resize-handle" onPointerDown={onResizeStart} />
       <div className="sidebar-header">
         <div className="sidebar-tabs">
           {(Object.keys(TAB_LABELS) as SidebarTabId[]).map((tab) => (

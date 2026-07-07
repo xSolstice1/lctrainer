@@ -48,7 +48,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 ) {
   const [state, dispatch] = usePanelState();
   const { theme, toggleTheme } = useTheme();
-  const { layout, updateLayout, toggleMinimized, startDrag, startResize } = usePanelLayout();
+  const { layout, updateLayout, toggleMinimized, startDrag, startResize, startSidebarResize } = usePanelLayout();
   // Bumped on acceptance so the Solved/Attempted lists re-fetch — accepting
   // moves the current slug between them without necessarily changing it.
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -345,6 +345,11 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     </div>
     <Sidebar
       theme={theme}
+      top={layout.top}
+      left={layout.left + layout.width}
+      width={layout.sidebarWidth}
+      height={layout.minimized ? 44 : layout.height}
+      onResizeStart={startSidebarResize}
       solvedTab={
         <SolvedPanel
           currentSlug={state.problem?.slug}

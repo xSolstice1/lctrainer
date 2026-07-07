@@ -8,26 +8,27 @@ export interface PanelLayout {
   height: number;
   opacity: number;
   minimized: boolean;
+  /** Width of the sidebar docked to the panel's right edge — it moves and resizes vertically with the panel, but its own width resizes independently. */
+  sidebarWidth: number;
 }
 
 export type ResizeCorner = "nw" | "ne" | "sw" | "se";
 
 const DEFAULT_WIDTH = 340;
 const DEFAULT_HEIGHT = 480;
-
-// The sidebar is always docked to the right edge — the main panel's default
-// position and drag/resize bounds leave this much room so it never spawns
-// or gets dragged underneath it.
-export const SIDEBAR_WIDTH = 300;
+export const DEFAULT_SIDEBAR_WIDTH = 300;
+const MIN_SIDEBAR_WIDTH = 220;
+const MAX_SIDEBAR_WIDTH = 480;
 
 function defaultLayout(): PanelLayout {
   return {
     top: 80,
-    left: Math.max(0, window.innerWidth - 16 - SIDEBAR_WIDTH - DEFAULT_WIDTH),
+    left: Math.max(0, window.innerWidth - 16 - DEFAULT_SIDEBAR_WIDTH - DEFAULT_WIDTH),
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
     opacity: 1,
     minimized: false,
+    sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
   };
 }
 
@@ -35,14 +36,14 @@ const MIN_WIDTH = 260;
 const MIN_HEIGHT = 220;
 
 function clampLayout(layout: PanelLayout): PanelLayout {
-  const maxLeft = Math.max(0, window.innerWidth - SIDEBAR_WIDTH - layout.width);
   return {
     top: Math.max(0, layout.top),
-    left: Math.min(maxLeft, Math.max(0, layout.left)),
+    left: Math.max(0, layout.left),
     width: Math.max(MIN_WIDTH, layout.width),
     height: Math.max(MIN_HEIGHT, layout.height),
     opacity: Math.min(1, Math.max(0.2, layout.opacity)),
     minimized: layout.minimized,
+    sidebarWidth: Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, layout.sidebarWidth)),
   };
 }
 
@@ -143,5 +144,30 @@ export function usePanelLayout() {
     target.addEventListener("pointerup", onUp);
   };
 
-  return { layout, updateLayout, toggleMinimized, startDrag, startResize };
+  const startSidebarResize = (startEvent: React.PointerEvent<HTMLElement>) => {
+    startEvent.preventDefault();
+    startEvent.stopPropagation();
+    const target = startEvent.currentTarget;
+    const pointerId = startEvent.pointerId;
+    target.setPointerCapture(pointerId);
+    const startX = startEvent.clientX;
+    const startWidth = layoutRef.current.sidebarWidth;
+
+    const onMove = (e: PointerEvent) => {
+      // Sidebar is docked to the panel's right edge — dragging its left edge
+      // leftward should grow it, i.e. width tracks the pointer inversely.
+      const dx = e.clientX - startX;
+      setLayout(clampLayout({ ...layoutRef.current, sidebarWidth: startWidth - dx }));
+    };
+    const onUp = () => {
+      target.releasePointerCapture(pointerId);
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+      persist(layoutRef.current);
+    };
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+  };
+
+  return { layout, updateLayout, toggleMinimized, startDrag, startResize, startSidebarResize };
 }
