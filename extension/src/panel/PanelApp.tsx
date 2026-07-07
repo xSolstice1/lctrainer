@@ -429,39 +429,41 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
         </>
       )}
     </div>
-    <Sidebar
-      theme={theme}
-      top={layout.top}
-      left={layout.left + layout.width}
-      width={layout.sidebarWidth}
-      height={layout.minimized ? 44 : layout.height}
-      collapsed={layout.sidebarCollapsed}
-      onToggleCollapsed={toggleSidebarCollapsed}
-      onEastEdgeResizeStart={startEastEdgeResize}
-      onNorthEdgeResizeStart={startNorthEdgeResize}
-      onSouthEdgeResizeStart={startSouthEdgeResize}
-      onCornerResizeStart={startSidebarCorner}
-      solvedTab={
-        <SolvedPanel
-          currentSlug={state.problem?.slug}
-          refreshKey={historyRefreshKey}
-          onReuseQuestion={(question, hintLevel) => {
-            dispatch({ type: "questionTextChanged", text: question });
-            dispatch({ type: "hintLevelChanged", hintLevel });
-          }}
-        />
-      }
-      attemptedTab={
-        <AttemptedPanel
-          currentSlug={state.problem?.slug}
-          refreshKey={historyRefreshKey}
-          onReuseQuestion={(question, hintLevel) => {
-            dispatch({ type: "questionTextChanged", text: question });
-            dispatch({ type: "hintLevelChanged", hintLevel });
-          }}
-        />
-      }
-    />
+    {!layout.minimized && (
+      <Sidebar
+        theme={theme}
+        top={layout.top}
+        left={layout.left + layout.width}
+        width={layout.sidebarWidth}
+        height={layout.height}
+        collapsed={layout.sidebarCollapsed}
+        onToggleCollapsed={toggleSidebarCollapsed}
+        onEastEdgeResizeStart={startEastEdgeResize}
+        onNorthEdgeResizeStart={startNorthEdgeResize}
+        onSouthEdgeResizeStart={startSouthEdgeResize}
+        onCornerResizeStart={startSidebarCorner}
+        solvedTab={
+          <SolvedPanel
+            currentSlug={state.problem?.slug}
+            refreshKey={historyRefreshKey}
+            onReuseQuestion={(question, hintLevel) => {
+              dispatch({ type: "questionTextChanged", text: question });
+              dispatch({ type: "hintLevelChanged", hintLevel });
+            }}
+          />
+        }
+        attemptedTab={
+          <AttemptedPanel
+            currentSlug={state.problem?.slug}
+            refreshKey={historyRefreshKey}
+            onReuseQuestion={(question, hintLevel) => {
+              dispatch({ type: "questionTextChanged", text: question });
+              dispatch({ type: "hintLevelChanged", hintLevel });
+            }}
+          />
+        }
+      />
+    )}
     </>
   );
 });
