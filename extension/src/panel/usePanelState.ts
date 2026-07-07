@@ -1,5 +1,5 @@
 import { useReducer } from "react";
-import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo } from "@lctrainer/shared";
+import type { GuidanceChunk, HintLevel, LLMProviderId, ModelInfo, ProblemMetadata, ServerConfigInfo, SubmissionError } from "@lctrainer/shared";
 
 export interface ThreadEntry {
   question: string;
@@ -25,6 +25,7 @@ export interface PanelState {
   selectedModelId: string;
   serverInfoError: string | null;
   showAcceptedReviewOffer: boolean;
+  submissionError: SubmissionError | null;
 }
 
 type PanelAction =
@@ -48,7 +49,9 @@ type PanelAction =
   | { type: "problemAccepted" }
   | { type: "dismissAcceptedReviewOffer" }
   | { type: "threadRestored"; slug: string; entries: ThreadEntry[] }
-  | { type: "threadEntryDeleted"; index: number };
+  | { type: "threadEntryDeleted"; index: number }
+  | { type: "submissionErrorReceived"; error: SubmissionError }
+  | { type: "dismissSubmissionError" };
 
 const initialState: PanelState = {
   problem: null,
@@ -64,6 +67,7 @@ const initialState: PanelState = {
   selectedModelId: "",
   serverInfoError: null,
   showAcceptedReviewOffer: false,
+  submissionError: null,
 };
 
 function updateLastEntry(thread: ThreadEntry[], patch: Partial<ThreadEntry>): ThreadEntry[] {
@@ -77,7 +81,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
     case "problemLoaded":
       // A different problem loaded — the thread belongs to the old one.
       if (action.problem?.slug !== state.problem?.slug) {
-        return { ...state, problem: action.problem, thread: [], showAcceptedReviewOffer: false };
+        return { ...state, problem: action.problem, thread: [], showAcceptedReviewOffer: false, submissionError: null };
       }
       return { ...state, problem: action.problem };
     case "hintRequested": {
@@ -135,6 +139,10 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, showAcceptedReviewOffer: true };
     case "dismissAcceptedReviewOffer":
       return { ...state, showAcceptedReviewOffer: false };
+    case "submissionErrorReceived":
+      return { ...state, submissionError: action.error };
+    case "dismissSubmissionError":
+      return { ...state, submissionError: null };
     case "threadRestored":
       // Cache lookup is async — only apply if the user is still on the problem it was fetched for.
       if (action.slug !== state.problem?.slug) return state;

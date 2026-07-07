@@ -12,6 +12,10 @@ export default defineManifest({
       suggested_key: { default: "Alt+H" },
       description: "Get a hint on the current LeetCode problem",
     },
+    "explain-error": {
+      suggested_key: { default: "Alt+E" },
+      description: "Explain the current submission error",
+    },
   },
   background: {
     service_worker: "src/background/background.ts",

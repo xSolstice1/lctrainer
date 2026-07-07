@@ -30,6 +30,11 @@ const guidanceRequestSchema = z.object({
   hintLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
   provider: z.enum(["local", "bedrock", "openrouter"]).optional(),
   modelId: z.string().optional(),
+  submissionError: z.object({
+    kind: z.enum(["wrong_answer", "runtime_error", "time_limit_exceeded", "other"]),
+    message: z.string(),
+    detail: z.string(),
+  }).optional(),
 });
 
 export function createGuidanceRouter(config: AppConfig, providers: ProviderRegistry): Router {
@@ -50,7 +55,7 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
       return;
     }
 
-    const systemPrompt = buildSystemPrompt(request.problem, request.hintLevel);
+    const systemPrompt = buildSystemPrompt(request.problem, request.hintLevel, request.submissionError);
     const abortController = new AbortController();
     // Listen on the response (not the request) — express.json() finishes
     // reading/parsing the request body before this handler runs, which

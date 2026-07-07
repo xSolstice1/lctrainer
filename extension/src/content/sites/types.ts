@@ -1,4 +1,4 @@
-import type { ProblemMetadata } from "@lctrainer/shared";
+import type { ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 
 export interface CodeExtractionResult {
   code: string;
@@ -21,4 +21,6 @@ export interface SiteAdapter {
   onSlugChange(callback: (slug: string | null) => void): () => void;
   /** Calls back once per accepted submission. Returns a disposer. */
   onAccepted(callback: () => void): () => void;
+  /** Calls back when a non-Accepted submission result appears. Returns a disposer. */
+  onError(callback: (error: SubmissionError) => void): () => void;
 }

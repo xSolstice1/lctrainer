@@ -25,9 +25,10 @@ async function getModelId(): Promise<string | undefined> {
 }
 
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command !== "request-hint") return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) chrome.tabs.sendMessage(tab.id, { type: "requestHintShortcut" });
+  if (!tab?.id) return;
+  if (command === "request-hint") chrome.tabs.sendMessage(tab.id, { type: "requestHintShortcut" });
+  if (command === "explain-error") chrome.tabs.sendMessage(tab.id, { type: "explainErrorShortcut" });
 });
 
 chrome.runtime.onConnect.addListener((port) => {

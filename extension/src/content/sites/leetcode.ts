@@ -2,7 +2,7 @@ import type { SiteAdapter } from "./types.js";
 import { extractProblemMetadata } from "../extractors/problem.js";
 import { requestCurrentCode } from "../extractors/code.js";
 import { onProblemSlugChange } from "../spaNavigation.js";
-import { onAccepted } from "../submissionWatcher.js";
+import { onAccepted, onError } from "../submissionWatcher.js";
 
 export const leetcodeAdapter: SiteAdapter = {
   name: "LeetCode",
@@ -10,4 +10,5 @@ export const leetcodeAdapter: SiteAdapter = {
   getCurrentCode: requestCurrentCode,
   onSlugChange: onProblemSlugChange,
   onAccepted,
+  onError,
 };
