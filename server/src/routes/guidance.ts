@@ -32,6 +32,7 @@ const guidanceRequestSchema = z.object({
   hintLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
   provider: z.enum(["local", "bedrock", "openrouter"]).optional(),
   modelId: z.string().optional(),
+  awsProfile: z.string().optional(),
   submissionError: z.object({
     kind: z.enum(["wrong_answer", "runtime_error", "time_limit_exceeded", "other"]),
     message: z.string(),
@@ -59,6 +60,10 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
     if (!provider) {
       res.status(400).json({ error: `Provider "${providerId}" is not configured on this server` });
       return;
+    }
+
+    if (request.awsProfile && providerId === "bedrock") {
+      process.env.AWS_PROFILE = request.awsProfile;
     }
 
     const systemPrompt =

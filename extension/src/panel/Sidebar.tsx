@@ -13,6 +13,7 @@ interface SidebarProps {
   height: number;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  onHideAll: () => void;
   onEastEdgeResizeStart: (e: React.PointerEvent<HTMLElement>) => void;
   onNorthEdgeResizeStart: (e: React.PointerEvent<HTMLElement>) => void;
   onSouthEdgeResizeStart: (e: React.PointerEvent<HTMLElement>) => void;
@@ -28,11 +29,6 @@ const TAB_LABELS: Record<SidebarTabId, string> = {
   studyplan: "Study Plan",
 };
 
-// Collapsed width of the drawer-style strip left docked to the panel — just
-// enough for the expand handle, no header/tabs. Its left edge stays pinned
-// to the panel's right edge, so shrinking to this width reads as the
-// sidebar sliding back into the panel rather than just hiding its content.
-const COLLAPSED_WIDTH = 28;
 
 export function Sidebar({
   theme,
@@ -42,6 +38,7 @@ export function Sidebar({
   height,
   collapsed,
   onToggleCollapsed,
+  onHideAll,
   onEastEdgeResizeStart,
   onNorthEdgeResizeStart,
   onSouthEdgeResizeStart,
@@ -64,19 +61,7 @@ export function Sidebar({
   };
 
   if (collapsed) {
-    return (
-      <button
-        type="button"
-        className={`sidebar sidebar-collapsed lctrainer-panel theme-${theme}`}
-        style={{ position: "fixed", top, left, width: COLLAPSED_WIDTH, height, pointerEvents: "auto" }}
-        onPointerDown={(e) => e.stopPropagation()}
-        title="Expand sidebar"
-        onClick={onToggleCollapsed}
-      >
-        <span className="sidebar-collapsed-arrow">◂</span>
-        <span className="sidebar-collapsed-label">History</span>
-      </button>
-    );
+    return null;
   }
 
   return (
@@ -98,8 +83,10 @@ export function Sidebar({
             </button>
           ))}
         </div>
-        <button type="button" className="icon-button" title="Collapse" onClick={onToggleCollapsed}>
-          ▸
+        <button type="button" className="header-btn sidebar-hide-btn" title="Hide extension" onClick={onHideAll}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
         </button>
       </div>
       <div className="sidebar-body">

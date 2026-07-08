@@ -198,7 +198,7 @@ describe("usePanelState", () => {
       })
     );
     const cached = [
-      { question: "old q", hintLevel: 1 as const, hintText: "old a", reasoningText: "", error: null, estimatedCostUsd: null },
+      { question: "old q", hintLevel: 1 as const, hintText: "old a", reasoningText: "", error: null, estimatedCostUsd: null, timestamp: 0 },
     ];
     act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries: cached }));
     expect(result.current[0].thread).toEqual(cached);
@@ -213,7 +213,7 @@ describe("usePanelState", () => {
       })
     );
     const stale = [
-      { question: "stale", hintLevel: 1 as const, hintText: "x", reasoningText: "", error: null, estimatedCostUsd: null },
+      { question: "stale", hintLevel: 1 as const, hintText: "x", reasoningText: "", error: null, estimatedCostUsd: null, timestamp: 0 },
     ];
     act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries: stale }));
     expect(result.current[0].thread).toEqual([]);
@@ -228,8 +228,8 @@ describe("usePanelState", () => {
       })
     );
     const entries = [
-      { question: "q1", hintLevel: 1 as const, hintText: "a1", reasoningText: "", error: null, estimatedCostUsd: null },
-      { question: "q2", hintLevel: 1 as const, hintText: "a2", reasoningText: "", error: null, estimatedCostUsd: null },
+      { question: "q1", hintLevel: 1 as const, hintText: "a1", reasoningText: "", error: null, estimatedCostUsd: null, timestamp: 0 },
+      { question: "q2", hintLevel: 1 as const, hintText: "a2", reasoningText: "", error: null, estimatedCostUsd: null, timestamp: 0 },
     ];
     act(() => result.current[1]({ type: "threadRestored", slug: "two-sum", entries }));
     act(() => result.current[1]({ type: "threadEntryDeleted", index: 0 }));

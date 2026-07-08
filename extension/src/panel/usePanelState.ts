@@ -19,6 +19,7 @@ export interface ThreadEntry {
   reasoningText: string;
   error: string | null;
   estimatedCostUsd: number | null;
+  timestamp: number;
 }
 
 export interface InterviewEntry {
@@ -28,6 +29,7 @@ export interface InterviewEntry {
   reasoningText: string;
   error: string | null;
   estimatedCostUsd: number | null;
+  timestamp: number;
 }
 
 export interface PanelState {
@@ -140,11 +142,13 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         reasoningText: "",
         error: null,
         estimatedCostUsd: null,
+        timestamp: Date.now(),
       };
       return {
         ...state,
         thread: [...state.thread, entry],
         isStreaming: true,
+        questionText: "",
         codeCaptureIncomplete: action.codeCaptureIncomplete,
         codeCaptureFailureReason: action.codeCaptureFailureReason ?? null,
         showAcceptedReviewOffer: false,
@@ -214,6 +218,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         reasoningText: "",
         error: null,
         estimatedCostUsd: null,
+        timestamp: Date.now(),
       };
       return {
         ...state,

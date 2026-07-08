@@ -3,7 +3,7 @@ import type { LLMProviderId } from "@lctrainer/shared";
 
 const baseSchema = z.object({
   PORT: z.coerce.number().default(3001),
-  LLM_PROVIDER: z.enum(["local", "bedrock", "openrouter"]).optional(),
+  LLM_PROVIDER: z.enum(["local", "bedrock", "openrouter"]).or(z.literal("")).optional().transform((v) => v || undefined),
 
   AWS_REGION: z.string().optional(),
   AWS_PROFILE: z.string().optional(),

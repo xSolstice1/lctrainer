@@ -2,6 +2,11 @@ import type { HintLevel } from "@lctrainer/shared";
 import { HintRenderer } from "./HintRenderer.js";
 import type { ThreadEntry } from "./usePanelState.js";
 
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   0: "Nudge",
   1: "Hint",
@@ -55,11 +60,14 @@ export function ThreadPanel({ thread, onReuseQuestion, onDeleteEntry }: ThreadPa
             </details>
           )}
           {entry.hintText && <HintRenderer text={entry.hintText} />}
-          {entry.estimatedCostUsd != null && (
-            <div className="thread-cost" title="Estimated cost based on reported token usage">
-              ~${entry.estimatedCostUsd < 0.01 ? entry.estimatedCostUsd.toFixed(4) : entry.estimatedCostUsd.toFixed(3)}
-            </div>
-          )}
+          <div className="thread-meta">
+            {entry.timestamp > 0 && <span className="thread-time">{formatTime(entry.timestamp)}</span>}
+            {entry.estimatedCostUsd != null && (
+              <span className="thread-cost" title="Estimated cost based on reported token usage">
+                ~${entry.estimatedCostUsd < 0.01 ? entry.estimatedCostUsd.toFixed(4) : entry.estimatedCostUsd.toFixed(3)}
+              </span>
+            )}
+          </div>
         </div>
       ))}
     </div>
