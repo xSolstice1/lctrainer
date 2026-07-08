@@ -661,6 +661,154 @@
   text-transform: uppercase;
 }
 
+/* --- Study plan prev/next context bar (main panel) --- */
+
+.plan-context-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.plan-context-bar .icon-button {
+  padding: 2px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.plan-context-label {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Study Plan tab (sidebar) --- */
+
+.study-plan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.study-plan-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.study-plan-shortcut {
+  font-size: 11px;
+  padding: 4px 8px !important;
+}
+
+.study-plan-add-custom {
+  display: flex;
+  gap: 4px;
+}
+
+.study-plan-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.study-plan-error {
+  font-size: 11px;
+}
+
+.study-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.study-plan {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 6px 10px;
+  position: relative;
+}
+
+.study-plan-summary {
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: calc(100% - 56px);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.study-plan-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-plan-actions {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  display: flex;
+  gap: 2px;
+}
+
+.study-plan-actions .icon-button {
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+.study-plan-group {
+  margin-top: 8px;
+}
+
+.study-plan-group-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.study-plan-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 3px 4px !important;
+  text-align: left;
+  color: var(--text) !important;
+  font-size: 12px;
+}
+
+.study-plan-row:hover {
+  background: var(--bg) !important;
+}
+
+.study-plan-row.current {
+  color: var(--accent) !important;
+}
+
+.study-plan-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Sidebar (always-on Solved/Attempted history dock) --- */
 
 .sidebar {

@@ -17,10 +17,14 @@ import { usePanelLayout } from "./usePanelLayout.js";
 import { Sidebar } from "./Sidebar.js";
 import { SolvedPanel } from "./SolvedPanel.js";
 import { AttemptedPanel } from "./AttemptedPanel.js";
+import { StudyPlanPanel } from "./StudyPlanPanel.js";
 import { ThreadPanel } from "./ThreadPanel.js";
 import { InterviewPanel } from "./InterviewPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
+import { useStudyPlans } from "../lib/useStudyPlans.js";
+import { findPlanContext } from "../lib/studyPlans.js";
+import { canonicalProblemUrl } from "../lib/leetcodeUrls.js";
 
 const HINT_LEVEL_LABELS: Record<HintLevel, string> = {
   0: "Nudge",
@@ -115,6 +119,8 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   // Bumped on acceptance so the Solved/Attempted lists re-fetch — accepting
   // moves the current slug between them without necessarily changing it.
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const studyPlans = useStudyPlans(historyRefreshKey);
+  const planContext = findPlanContext(studyPlans, state.problem?.slug);
 
   useImperativeHandle(ref, () => ({
     onProblemLoaded: (problem) => dispatch({ type: "problemLoaded", problem }),
@@ -339,6 +345,30 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           <div className="panel-body">
           <div className="panel-controls">
             <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+
+            {planContext && (
+              <div className="plan-context-bar">
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={!planContext.prevSlug}
+                  onClick={() => planContext.prevSlug && (window.location.href = canonicalProblemUrl(planContext.prevSlug))}
+                >
+                  ‹ Prev
+                </button>
+                <span className="plan-context-label">
+                  {planContext.plan.name} {planContext.index + 1}/{planContext.total}
+                </span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={!planContext.nextSlug}
+                  onClick={() => planContext.nextSlug && (window.location.href = canonicalProblemUrl(planContext.nextSlug))}
+                >
+                  Next ›
+                </button>
+              </div>
+            )}
 
             {patternTags.length > 0 && (
               <div className="pattern-tags">
@@ -651,6 +681,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               dispatch({ type: "questionTextChanged", text: question });
               dispatch({ type: "hintLevelChanged", hintLevel });
             }}
+          />
+        }
+        studyPlanTab={
+          <StudyPlanPanel
+            currentSlug={state.problem?.slug}
+            refreshKey={historyRefreshKey}
+            onPlansChanged={() => setHistoryRefreshKey((k) => k + 1)}
           />
         }
       />

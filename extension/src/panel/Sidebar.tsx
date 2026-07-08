@@ -1,6 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { STORAGE_KEY_SIDEBAR_TAB } from "../lib/constants.js";
 
-export type SidebarTabId = "solved" | "attempted";
+export type SidebarTabId = "solved" | "attempted" | "studyplan";
+
+const VALID_TAB_IDS: SidebarTabId[] = ["solved", "attempted", "studyplan"];
 
 interface SidebarProps {
   theme: "dark" | "light";
@@ -16,11 +19,13 @@ interface SidebarProps {
   onCornerResizeStart: (e: React.PointerEvent<HTMLElement>, corner: "ne" | "se") => void;
   solvedTab: ReactNode;
   attemptedTab: ReactNode;
+  studyPlanTab: ReactNode;
 }
 
 const TAB_LABELS: Record<SidebarTabId, string> = {
   solved: "Solved",
   attempted: "Attempted",
+  studyplan: "Study Plan",
 };
 
 // Collapsed width of the drawer-style strip left docked to the panel — just
@@ -43,8 +48,20 @@ export function Sidebar({
   onCornerResizeStart,
   solvedTab,
   attemptedTab,
+  studyPlanTab,
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTabId>("solved");
+
+  useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEY_SIDEBAR_TAB).then((stored) => {
+      if (VALID_TAB_IDS.includes(stored[STORAGE_KEY_SIDEBAR_TAB])) setActiveTab(stored[STORAGE_KEY_SIDEBAR_TAB]);
+    });
+  }, []);
+
+  const selectTab = (tab: SidebarTabId) => {
+    setActiveTab(tab);
+    chrome.storage.local.set({ [STORAGE_KEY_SIDEBAR_TAB]: tab });
+  };
 
   if (collapsed) {
     return (
@@ -75,7 +92,7 @@ export function Sidebar({
               key={tab}
               type="button"
               className={`sidebar-tab${activeTab === tab ? " active" : ""}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => selectTab(tab)}
             >
               {TAB_LABELS[tab]}
             </button>
@@ -85,7 +102,9 @@ export function Sidebar({
           ▸
         </button>
       </div>
-      <div className="sidebar-body">{activeTab === "solved" ? solvedTab : attemptedTab}</div>
+      <div className="sidebar-body">
+        {activeTab === "solved" ? solvedTab : activeTab === "attempted" ? attemptedTab : studyPlanTab}
+      </div>
       <div className="edge-resize-handle edge-resize-handle-n" onPointerDown={onNorthEdgeResizeStart} />
       <div className="edge-resize-handle edge-resize-handle-e" onPointerDown={onEastEdgeResizeStart} />
       <div className="edge-resize-handle edge-resize-handle-s" onPointerDown={onSouthEdgeResizeStart} />

@@ -1,12 +1,9 @@
 import type { Difficulty, ProblemMetadata } from "@lctrainer/shared";
+import { canonicalProblemUrl as canonicalUrl } from "../../lib/leetcodeUrls.js";
 
 function getSlugFromPath(): string | null {
   const match = location.pathname.match(/\/problems\/([^/]+)/);
   return match?.[1] ?? null;
-}
-
-function canonicalUrl(slug: string): string {
-  return `https://leetcode.com/problems/${slug}/`;
 }
 
 async function fetchViaGraphQL(slug: string): Promise<ProblemMetadata | null> {
