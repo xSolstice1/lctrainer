@@ -343,7 +343,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       {!layout.minimized && (
         <>
           <div className="panel-body">
-          <div className="panel-controls">
+          <div className="panel-meta">
             <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
 
             {planContext && (
@@ -423,7 +423,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </div>
             )}
 
-            {state.interviewMode ? (
+            {state.interviewMode && (
               <>
                 <label className="model-select-label">
                   Candidate level
@@ -454,112 +454,8 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                     ))}
                   </select>
                 </label>
-
-                {state.interviewThread.length === 0 ? (
-                  <div className="panel-controls-row">
-                    <button onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
-                      {state.isInterviewStreaming ? "Starting..." : "Start interview"}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <textarea
-                      className="question-input"
-                      placeholder="Talk through your approach, answer a follow-up, or ask a clarifying question"
-                      value={state.questionText}
-                      onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
-                      rows={2}
-                    />
-                    <div className="panel-controls-row">
-                      <button onClick={handleSendInterviewMessage} disabled={state.isInterviewStreaming || !state.problem}>
-                        {state.isInterviewStreaming ? "Thinking..." : "Send"}
-                      </button>
-                      {state.interviewPhase === "opening" && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={handleDoneCoding}
-                          disabled={state.isInterviewStreaming || !state.problem}
-                          title="Tell the interviewer you're done coding and ready for follow-ups"
-                        >
-                          I'm done, review my code
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="danger-button"
-                        onClick={handleEndInterview}
-                        disabled={state.isInterviewStreaming || !state.problem}
-                        title="End the interview and get your final evaluation"
-                      >
-                        End &amp; grade
-                      </button>
-                      {state.isInterviewStreaming && (
-                        <button type="button" className="cancel-button" onClick={onCancelHint}>
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <textarea
-                  className="question-input"
-                  placeholder="Ask a specific question (optional) — otherwise just get a general hint"
-                  value={state.questionText}
-                  onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
-                  rows={2}
-                />
-
-                <label className="hint-level-control" title="How much of the answer to reveal">
-                  <span>Depth: {HINT_LEVEL_LABELS[state.hintLevel]}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={3}
-                    step={1}
-                    value={state.hintLevel}
-                    onChange={(e) => dispatch({ type: "hintLevelChanged", hintLevel: Number(e.target.value) as HintLevel })}
-                  />
-                </label>
-
-                <div className="panel-controls-row">
-                  <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
-                    {buttonLabel}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleComplexityCheck}
-                    disabled={state.isStreaming || !state.problem}
-                    title="Ask for the time/space complexity of your current code"
-                  >
-                    Complexity?
-                  </button>
-                  {state.isStreaming && (
-                    <button type="button" className="cancel-button" onClick={onCancelHint}>
-                      Cancel
-                    </button>
-                  )}
-                </div>
               </>
             )}
-
-            <div className="panel-controls-row">
-              <label className="opacity-control" title="Panel opacity">
-                <span>Opacity</span>
-                <input
-                  type="range"
-                  min={0.2}
-                  max={1}
-                  step={0.05}
-                  value={layout.opacity}
-                  onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
-                />
-              </label>
-            </div>
           </div>
 
           <div className="panel-output">
@@ -632,6 +528,114 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                 />
               </>
             )}
+          </div>
+
+          <div className="panel-composer">
+            {state.interviewMode ? (
+              state.interviewThread.length === 0 ? (
+                <div className="panel-controls-row">
+                  <button onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
+                    {state.isInterviewStreaming ? "Starting..." : "Start interview"}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    className="question-input"
+                    placeholder="Talk through your approach, answer a follow-up, or ask a clarifying question"
+                    value={state.questionText}
+                    onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+                    rows={2}
+                  />
+                  <div className="panel-controls-row">
+                    <button onClick={handleSendInterviewMessage} disabled={state.isInterviewStreaming || !state.problem}>
+                      {state.isInterviewStreaming ? "Thinking..." : "Send"}
+                    </button>
+                    {state.interviewPhase === "opening" && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={handleDoneCoding}
+                        disabled={state.isInterviewStreaming || !state.problem}
+                        title="Tell the interviewer you're done coding and ready for follow-ups"
+                      >
+                        I'm done, review my code
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="danger-button"
+                      onClick={handleEndInterview}
+                      disabled={state.isInterviewStreaming || !state.problem}
+                      title="End the interview and get your final evaluation"
+                    >
+                      End &amp; grade
+                    </button>
+                    {state.isInterviewStreaming && (
+                      <button type="button" className="cancel-button" onClick={onCancelHint}>
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </>
+              )
+            ) : (
+              <>
+                <textarea
+                  className="question-input"
+                  placeholder="Ask a specific question (optional) — otherwise just get a general hint"
+                  value={state.questionText}
+                  onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+                  rows={2}
+                />
+
+                <label className="hint-level-control" title="How much of the answer to reveal">
+                  <span>Depth: {HINT_LEVEL_LABELS[state.hintLevel]}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={3}
+                    step={1}
+                    value={state.hintLevel}
+                    onChange={(e) => dispatch({ type: "hintLevelChanged", hintLevel: Number(e.target.value) as HintLevel })}
+                  />
+                </label>
+
+                <div className="panel-controls-row">
+                  <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
+                    {buttonLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleComplexityCheck}
+                    disabled={state.isStreaming || !state.problem}
+                    title="Ask for the time/space complexity of your current code"
+                  >
+                    Complexity?
+                  </button>
+                  {state.isStreaming && (
+                    <button type="button" className="cancel-button" onClick={onCancelHint}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="panel-controls-row">
+              <label className="opacity-control" title="Panel opacity">
+                <span>Opacity</span>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={1}
+                  step={0.05}
+                  value={layout.opacity}
+                  onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
+                />
+              </label>
+            </div>
           </div>
           </div>
 
