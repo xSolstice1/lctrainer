@@ -5,6 +5,7 @@ export type ContentToBackgroundMessage =
   | { type: "requestGuidance"; request: GuidanceRequest }
   | { type: "cancelGuidance"; requestId: string }
   | { type: "requestServerInfo" }
+  | { type: "requestAwsProfiles" }
   | { type: "ping" };
 
 /** Messages sent down the chrome.runtime.Port from background worker to content script. */
@@ -14,6 +15,7 @@ export type BackgroundToContentMessage =
   | { type: "guidanceCancelled"; requestId: string }
   | { type: "serverInfo"; config: ServerConfigInfo; modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>> }
   | { type: "serverInfoError"; message: string }
+  | { type: "awsProfiles"; profiles: string[]; currentProfile: string | null }
   | { type: "pong" };
 
 export const PORT_NAME = "lctrainer-guidance-port";

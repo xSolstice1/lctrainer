@@ -21,6 +21,7 @@ import { StudyPlanPanel } from "./StudyPlanPanel.js";
 import { ThreadPanel } from "./ThreadPanel.js";
 import { InterviewPanel } from "./InterviewPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
+import { STORAGE_KEY_AWS_PROFILE } from "../lib/constants.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 import { useStudyPlans } from "../lib/useStudyPlans.js";
 import { findPlanContext } from "../lib/studyPlans.js";
@@ -57,6 +58,7 @@ export interface PanelHandle {
   onInterviewCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
+  onAwsProfilesLoaded(profiles: string[], currentProfile: string | null): void;
   onProblemAccepted(): void;
   onSubmissionError(error: SubmissionError): void;
   triggerHintShortcut(): void;
@@ -84,6 +86,7 @@ interface PanelAppProps {
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
   onRequestServerInfo: () => void;
+  onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
 }
 
@@ -96,6 +99,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onProviderChange,
     onModelChange,
     onRequestServerInfo,
+    onRequestAwsProfiles,
     onCancelHint,
   },
   ref
@@ -107,6 +111,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     updateLayout,
     toggleMinimized,
     toggleSidebarCollapsed,
+    toggleHidden,
     startDrag,
     startResize,
     startWestEdgeResize,
@@ -116,6 +121,12 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     startSeamResize,
     startSidebarCorner,
   } = usePanelLayout();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hiding, setHiding] = useState(false);
+  const [awsProfiles, setAwsProfiles] = useState<string[]>([]);
+  const [selectedAwsProfile, setSelectedAwsProfile] = useState("");
+  const outputRef = useRef<HTMLDivElement>(null);
+
   // Bumped on acceptance so the Solved/Attempted lists re-fetch — accepting
   // moves the current slug between them without necessarily changing it.
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -132,6 +143,10 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onInterviewCancelled: () => dispatch({ type: "interviewCancelled" }),
     onServerInfoLoaded: (config, modelsByProvider) => dispatch({ type: "serverInfoLoaded", config, modelsByProvider }),
     onServerInfoFailed: (message) => dispatch({ type: "serverInfoFailed", message }),
+    onAwsProfilesLoaded: (profiles, currentProfile) => {
+      setAwsProfiles(profiles);
+      if (!selectedAwsProfile && currentProfile) setSelectedAwsProfile(currentProfile);
+    },
     onProblemAccepted: () => {
       dispatch({ type: "problemAccepted" });
       setHistoryRefreshKey((k) => k + 1);
@@ -149,8 +164,23 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     dispatch({ type: "providerSelected", providerId: initialProviderId });
     dispatch({ type: "modelSelected", modelId: initialModelId });
     onRequestServerInfo();
+    onRequestAwsProfiles();
+    chrome.storage.local.get(STORAGE_KEY_AWS_PROFILE).then((stored) => {
+      if (stored[STORAGE_KEY_AWS_PROFILE]) setSelectedAwsProfile(stored[STORAGE_KEY_AWS_PROFILE]);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (state.serverInfoError && !state.serverConfig) {
+      const timer = setTimeout(() => {
+        onRequestServerInfo();
+        onRequestAwsProfiles();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.serverInfoError]);
 
   // Tracks which problem slugs a restore attempt has completed for, so the
   // persist effect below never overwrites the cache with the empty thread
@@ -172,6 +202,12 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     saveThread(slug, state.thread, Date.now());
   }, [slug, state.thread, state.isStreaming]);
 
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    }
+  }, [state.thread, state.interviewThread]);
+
   const handleProviderChange = (providerId: string) => {
     dispatch({ type: "providerSelected", providerId });
     onProviderChange(providerId);
@@ -181,6 +217,23 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const handleModelChange = (modelId: string) => {
     dispatch({ type: "modelSelected", modelId });
     onModelChange(modelId);
+  };
+
+  const handleAwsProfileChange = (profile: string) => {
+    setSelectedAwsProfile(profile);
+    chrome.storage.local.set({ [STORAGE_KEY_AWS_PROFILE]: profile });
+  };
+
+  const handleHide = () => {
+    if (layout.hidden) {
+      toggleHidden();
+      return;
+    }
+    setHiding(true);
+    setTimeout(() => {
+      setHiding(false);
+      toggleHidden();
+    }, 250);
   };
 
   const submitRequest = async (userQuestion: string | undefined, hintLevel: HintLevel) => {
@@ -288,15 +341,34 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
           : "Get a hint";
 
   const effectiveProviderId = state.selectedProviderId || state.serverConfig?.defaultProvider || "";
+  const FALLBACK_PROVIDERS: { id: LLMProviderId; label: string }[] = [
+    { id: "bedrock", label: "AWS Bedrock" },
+    { id: "openrouter", label: "OpenRouter" },
+    { id: "local", label: "Local (Ollama)" },
+  ];
   const providers = state.serverConfig?.providers ?? [];
   const selectedProviderInfo = providers.find((p) => p.id === effectiveProviderId);
   const availableModels = (effectiveProviderId && state.modelsByProvider[effectiveProviderId as LLMProviderId]) || [];
   const patternTags = (state.problem?.tags ?? []).filter((tag) => PATTERN_TAGS.has(tag));
 
+  if (layout.hidden) {
+    return (
+      <button
+        type="button"
+        className={`lctrainer-notch theme-${theme} notch-enter`}
+        style={{ position: "fixed", top: layout.top, right: 0, pointerEvents: "auto" }}
+        onClick={handleHide}
+        title="Show Leetcode Trainer"
+      >
+        <span className="notch-icon">‹</span>
+      </button>
+    );
+  }
+
   return (
     <>
     <div
-      className={`lctrainer-panel theme-${theme}${layout.minimized ? " minimized" : ""}`}
+      className={`lctrainer-panel theme-${theme}${layout.minimized ? " minimized" : ""}${!layout.minimized && !layout.sidebarCollapsed ? " sidebar-attached" : ""}${hiding ? " panel-hiding" : ""}`}
       style={{
         position: "fixed",
         top: layout.top,
@@ -308,44 +380,165 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       }}
     >
       <div className="panel-header" onPointerDown={startDrag}>
-        <span className="panel-title">Leetcode Trainer</span>
+        <div className="panel-header-left">
+          <span className="panel-title">LC Trainer</span>
+          <div className="mode-tabs" onPointerDown={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={`mode-tab${!state.interviewMode ? " active" : ""}`}
+              onClick={() => { if (state.interviewMode) dispatch({ type: "interviewModeToggled" }); }}
+            >
+              Learn
+            </button>
+            <button
+              type="button"
+              className={`mode-tab${state.interviewMode ? " active" : ""}`}
+              onClick={() => { if (!state.interviewMode) dispatch({ type: "interviewModeToggled" }); }}
+            >
+              Mock
+            </button>
+          </div>
+        </div>
         <div className="panel-header-actions">
           <button
             type="button"
-            className={`icon-button mode-toggle-button${state.interviewMode ? " active" : ""}`}
-            title={state.interviewMode ? "Switch to Learn mode" : "Switch to Interview mode"}
-            onClick={() => dispatch({ type: "interviewModeToggled" })}
+            className={`header-btn${settingsOpen ? " active" : ""}`}
+            title="Settings"
+            onClick={() => setSettingsOpen(!settingsOpen)}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {state.interviewMode ? "🎤 Interview" : "📖 Learn"}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
           </button>
           <button
             type="button"
-            className="icon-button"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            onClick={toggleTheme}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {theme === "dark" ? "☾" : "☀"}
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            title={layout.minimized ? "Expand" : "Minimize"}
+            className="header-btn"
+            title={layout.minimized ? "Expand panel" : "Collapse panel"}
             onClick={toggleMinimized}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {layout.minimized ? "▢" : "—"}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {layout.minimized
+                ? <polyline points="6 15 12 9 18 15" />
+                : <polyline points="6 9 12 15 18 9" />
+              }
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="header-btn sidebar-btn"
+            title={layout.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+            onClick={toggleSidebarCollapsed}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
           </button>
         </div>
       </div>
 
       {!layout.minimized && (
         <>
-          <div className="panel-body">
-          <div className="panel-meta">
-            <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+          {settingsOpen && (
+            <div className="settings-panel">
+              <div className="settings-panel-header">
+                <span className="settings-panel-title">Settings</span>
+                <button type="button" className="header-btn" onClick={() => setSettingsOpen(false)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="settings-panel-body">
+                <div className="settings-section">
+                  <span className="settings-label">Theme</span>
+                  <div className="settings-toggle-row">
+                    <button
+                      type="button"
+                      className={`settings-toggle-btn${theme === "light" ? " active" : ""}`}
+                      onClick={() => { if (theme !== "light") toggleTheme(); }}
+                    >
+                      Light
+                    </button>
+                    <button
+                      type="button"
+                      className={`settings-toggle-btn${theme === "dark" ? " active" : ""}`}
+                      onClick={() => { if (theme !== "dark") toggleTheme(); }}
+                    >
+                      Dark
+                    </button>
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <span className="settings-label">Opacity</span>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={1}
+                    step={0.05}
+                    value={layout.opacity}
+                    onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
+                  />
+                </div>
 
+                <div className="settings-section">
+                  <span className="settings-label">Provider</span>
+                  <select
+                    className="settings-select"
+                    value={state.selectedProviderId}
+                    onChange={(e) => handleProviderChange(e.target.value)}
+                  >
+                    <option value="">
+                      {state.serverConfig ? `Server default (${state.serverConfig.defaultProvider})` : "Auto"}
+                    </option>
+                    {(providers.length > 0 ? providers : FALLBACK_PROVIDERS).map((p) => (
+                      <option key={p.id} value={p.id}>{"label" in p ? p.label : p.id}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="settings-section">
+                  <span className="settings-label">Model</span>
+                  <select
+                    className="settings-select"
+                    value={state.selectedModelId}
+                    onChange={(e) => handleModelChange(e.target.value)}
+                  >
+                    <option value="">
+                      {availableModels.length === 0
+                        ? state.serverConfig ? "Default (server configured)" : "Loading..."
+                        : `Default (${selectedProviderInfo?.defaultModelId})`}
+                    </option>
+                    {availableModels.map((m) => (
+                      <option key={m.modelId} value={m.modelId}>{m.modelName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {effectiveProviderId === "bedrock" && (
+                  <div className="settings-section">
+                    <span className="settings-label">AWS Profile</span>
+                    <select
+                      className="settings-select"
+                      value={selectedAwsProfile}
+                      onChange={(e) => handleAwsProfileChange(e.target.value)}
+                    >
+                      <option value="">Default</option>
+                      {awsProfiles.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="panel-body" style={{ display: settingsOpen ? "none" : undefined }}>
+          <div className="panel-meta">
             {planContext && (
               <div className="plan-context-bar">
                 <button
@@ -370,6 +563,8 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </div>
             )}
 
+            <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+
             {patternTags.length > 0 && (
               <div className="pattern-tags">
                 {patternTags.map((tag) => (
@@ -380,48 +575,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </div>
             )}
 
-            {providers.length > 1 && (
-              <label className="model-select-label">
-                Provider
-                <select value={state.selectedProviderId} onChange={(e) => handleProviderChange(e.target.value)}>
-                  <option value="">Server default ({state.serverConfig?.defaultProvider})</option>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            {selectedProviderInfo?.supportsModelList && (
-              <label className="model-select-label">
-                Model
-                {availableModels.length > 0 ? (
-                  <select value={state.selectedModelId} onChange={(e) => handleModelChange(e.target.value)}>
-                    <option value="">Server default ({selectedProviderInfo.defaultModelId})</option>
-                    {availableModels.map((m) => (
-                      <option key={m.modelId} value={m.modelId}>
-                        {m.modelName}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="model-select-fallback">
-                    {state.serverInfoError ? "Model list unavailable" : "Loading models..."}
-                  </span>
-                )}
-              </label>
-            )}
-
-            {selectedProviderInfo && !selectedProviderInfo.supportsModelList && (
-              <div className="model-select-label">
-                Model
-                <span className="model-select-fallback">
-                  {state.selectedModelId || selectedProviderInfo.defaultModelId}
-                </span>
-              </div>
-            )}
 
             {state.interviewMode && (
               <>
@@ -458,7 +611,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             )}
           </div>
 
-          <div className="panel-output">
+          <div className="panel-output" ref={outputRef}>
             {state.interviewMode ? (
               <>
                 {state.codeCaptureIncomplete && (
@@ -530,116 +683,137 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             )}
           </div>
 
-          <div className="panel-composer">
+          <div className="panel-composer" style={{ display: settingsOpen ? "none" : undefined }}>
             {state.interviewMode ? (
               state.interviewThread.length === 0 ? (
                 <div className="panel-controls-row">
-                  <button onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
+                  <button className="primary-btn" onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
                     {state.isInterviewStreaming ? "Starting..." : "Start interview"}
                   </button>
                 </div>
               ) : (
-                <>
+                <div className="composer-bar">
                   <textarea
-                    className="question-input"
-                    placeholder="Talk through your approach, answer a follow-up, or ask a clarifying question"
+                    className="composer-input"
+                    placeholder="Talk through your approach, answer a follow-up..."
                     value={state.questionText}
                     onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
                     rows={2}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!state.isInterviewStreaming && state.problem) handleSendInterviewMessage();
+                      }
+                    }}
                   />
-                  <div className="panel-controls-row">
-                    <button onClick={handleSendInterviewMessage} disabled={state.isInterviewStreaming || !state.problem}>
-                      {state.isInterviewStreaming ? "Thinking..." : "Send"}
-                    </button>
-                    {state.interviewPhase === "opening" && (
+                  <div className="composer-toolbar">
+                    <div className="composer-toolbar-left">
+                      {state.interviewPhase === "opening" && (
+                        <button
+                          type="button"
+                          className="composer-action-btn"
+                          onClick={handleDoneCoding}
+                          disabled={state.isInterviewStreaming || !state.problem}
+                          title="Tell the interviewer you're done coding"
+                        >
+                          Done coding
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="secondary-button"
-                        onClick={handleDoneCoding}
+                        className="composer-action-btn composer-action-danger"
+                        onClick={handleEndInterview}
                         disabled={state.isInterviewStreaming || !state.problem}
-                        title="Tell the interviewer you're done coding and ready for follow-ups"
+                        title="End and get final evaluation"
                       >
-                        I'm done, review my code
+                        End &amp; grade
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className="danger-button"
-                      onClick={handleEndInterview}
-                      disabled={state.isInterviewStreaming || !state.problem}
-                      title="End the interview and get your final evaluation"
-                    >
-                      End &amp; grade
-                    </button>
-                    {state.isInterviewStreaming && (
-                      <button type="button" className="cancel-button" onClick={onCancelHint}>
+                    </div>
+                    {state.isInterviewStreaming ? (
+                      <button type="button" className="composer-send-btn composer-cancel-btn" onClick={onCancelHint}>
                         Cancel
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="composer-send-btn"
+                        onClick={handleSendInterviewMessage}
+                        disabled={!state.problem}
+                        title="Send"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13" />
+                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
                       </button>
                     )}
                   </div>
-                </>
+                </div>
               )
             ) : (
               <>
-                <textarea
-                  className="question-input"
-                  placeholder="Ask a specific question (optional) — otherwise just get a general hint"
-                  value={state.questionText}
-                  onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
-                  rows={2}
-                />
-
-                <label className="hint-level-control" title="How much of the answer to reveal">
-                  <span>Depth: {HINT_LEVEL_LABELS[state.hintLevel]}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={3}
-                    step={1}
-                    value={state.hintLevel}
-                    onChange={(e) => dispatch({ type: "hintLevelChanged", hintLevel: Number(e.target.value) as HintLevel })}
+                <div className="composer-bar">
+                  <textarea
+                    className="composer-input"
+                    placeholder="Ask a question, or just send for a hint..."
+                    value={state.questionText}
+                    onChange={(e) => dispatch({ type: "questionTextChanged", text: e.target.value })}
+                    rows={2}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!state.isStreaming && state.problem) handleRequest();
+                      }
+                    }}
                   />
-                </label>
-
-                <div className="panel-controls-row">
-                  <button onClick={handleRequest} disabled={state.isStreaming || !state.problem}>
-                    {buttonLabel}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleComplexityCheck}
-                    disabled={state.isStreaming || !state.problem}
-                    title="Ask for the time/space complexity of your current code"
-                  >
-                    Complexity?
-                  </button>
-                  {state.isStreaming && (
-                    <button type="button" className="cancel-button" onClick={onCancelHint}>
-                      Cancel
-                    </button>
-                  )}
+                  <div className="composer-toolbar">
+                    <div className="composer-toolbar-left">
+                      <button
+                        type="button"
+                        className="composer-depth-btn"
+                        title="Cycle hint depth"
+                        onClick={() => dispatch({ type: "hintLevelChanged", hintLevel: ((state.hintLevel + 1) % 4) as HintLevel })}
+                      >
+                        {HINT_LEVEL_LABELS[state.hintLevel]}
+                      </button>
+                      <button
+                        type="button"
+                        className="composer-action-btn"
+                        onClick={handleComplexityCheck}
+                        disabled={state.isStreaming || !state.problem}
+                        title="Check time/space complexity"
+                      >
+                        Complexity
+                      </button>
+                    </div>
+                    {state.isStreaming ? (
+                      <button type="button" className="composer-send-btn composer-cancel-btn" onClick={onCancelHint}>
+                        Cancel
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="composer-send-btn"
+                        onClick={handleRequest}
+                        disabled={!state.problem}
+                        title={state.questionText.trim() ? "Send" : "Get a hint"}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13" />
+                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </>
             )}
 
-            <div className="panel-controls-row">
-              <label className="opacity-control" title="Panel opacity">
-                <span>Opacity</span>
-                <input
-                  type="range"
-                  min={0.2}
-                  max={1}
-                  step={0.05}
-                  value={layout.opacity}
-                  onChange={(e) => updateLayout({ opacity: Number(e.target.value) })}
-                />
-              </label>
-            </div>
           </div>
           </div>
 
           <div className="panel-footer">
+            <span className="panel-footer-version">v{chrome.runtime.getManifest().version}</span>
             <span>Made by Vectr Labs</span>
           </div>
 
@@ -663,6 +837,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
         height={layout.height}
         collapsed={layout.sidebarCollapsed}
         onToggleCollapsed={toggleSidebarCollapsed}
+        onHideAll={handleHide}
         onEastEdgeResizeStart={startEastEdgeResize}
         onNorthEdgeResizeStart={startNorthEdgeResize}
         onSouthEdgeResizeStart={startSouthEdgeResize}

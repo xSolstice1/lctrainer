@@ -25,6 +25,7 @@ export interface MountedPanel {
   onInterviewCancelled(): void;
   onServerInfoLoaded(config: ServerConfigInfo, modelsByProvider: Partial<Record<LLMProviderId, ModelInfo[]>>): void;
   onServerInfoFailed(message: string): void;
+  onAwsProfilesLoaded(profiles: string[], currentProfile: string | null): void;
   onProblemAccepted(): void;
   onSubmissionError(error: SubmissionError): void;
   triggerHintShortcut(): void;
@@ -52,6 +53,7 @@ interface MountPanelOptions {
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
   onRequestServerInfo: () => void;
+  onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
 }
 
@@ -94,6 +96,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
       onProviderChange: options.onProviderChange,
       onModelChange: options.onModelChange,
       onRequestServerInfo: options.onRequestServerInfo,
+      onRequestAwsProfiles: options.onRequestAwsProfiles,
       onCancelHint: options.onCancelHint,
     })
   );
@@ -108,6 +111,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
     onInterviewCancelled: () => ref.current?.onInterviewCancelled(),
     onServerInfoLoaded: (config, modelsByProvider) => ref.current?.onServerInfoLoaded(config, modelsByProvider),
     onServerInfoFailed: (message) => ref.current?.onServerInfoFailed(message),
+    onAwsProfilesLoaded: (profiles, currentProfile) => ref.current?.onAwsProfilesLoaded(profiles, currentProfile),
     onProblemAccepted: () => ref.current?.onProblemAccepted(),
     onSubmissionError: (error) => ref.current?.onSubmissionError(error),
     triggerHintShortcut: () => ref.current?.triggerHintShortcut(),

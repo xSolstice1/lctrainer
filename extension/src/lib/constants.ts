@@ -9,4 +9,5 @@ export const STORAGE_KEY_STUDY_PLANS = "lctrainer_study_plans";
 export const STORAGE_KEY_SIDEBAR_TAB = "lctrainer_sidebar_tab";
 export const STORAGE_KEY_STUDY_PLAN_EXPANDED = "lctrainer_study_plan_expanded";
 export const STORAGE_KEY_THREAD_CACHE = "lctrainer_thread_cache";
+export const STORAGE_KEY_AWS_PROFILE = "lctrainer_aws_profile";
 export const CODE_POLL_INTERVAL_MS = 2500;

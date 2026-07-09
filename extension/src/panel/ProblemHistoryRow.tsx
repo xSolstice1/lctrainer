@@ -35,12 +35,9 @@ export function ProblemHistoryRow({ record, isCurrent, showCode, onReuseQuestion
   return (
     <div className={`history-row difficulty-${record.difficulty.toLowerCase()}${isCurrent ? " current" : ""}`}>
       <button type="button" className="history-row-summary" onClick={() => setExpanded((e) => !e)}>
-        <span className="history-row-title">
-          {record.title}
-          {isCurrent && <span className="history-row-current-tag">current</span>}
-        </span>
+        <span className="history-row-title">{record.title}</span>
         <span className="learned-meta">
-          {record.difficulty} · {record.hintCount} hint{record.hintCount === 1 ? "" : "s"}
+          {record.difficulty} · {record.hintCount}
         </span>
       </button>
       {record.url && (
@@ -67,7 +64,7 @@ export function ProblemHistoryRow({ record, isCurrent, showCode, onReuseQuestion
         }
         onClick={() => onToggleStatus(record)}
       >
-        {record.manualStatus === "learned" ? "✓ manual" : record.manualStatus === "not-learned" ? "✕ manual" : "auto"}
+        {record.manualStatus === "learned" ? "✓" : record.manualStatus === "not-learned" ? "✕" : "AUTO"}
       </button>
 
       {expanded && (

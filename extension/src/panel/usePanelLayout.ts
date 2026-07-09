@@ -11,6 +11,7 @@ export interface PanelLayout {
   /** Width of the sidebar docked to the panel's right edge — its top/height track the panel's, but its own width resizes independently. */
   sidebarWidth: number;
   sidebarCollapsed: boolean;
+  hidden: boolean;
 }
 
 export type ResizeCorner = "nw" | "ne" | "sw" | "se";
@@ -31,6 +32,7 @@ function defaultLayout(): PanelLayout {
     minimized: false,
     sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
     sidebarCollapsed: false,
+    hidden: false,
   };
 }
 
@@ -47,6 +49,7 @@ function clampLayout(layout: PanelLayout): PanelLayout {
     minimized: layout.minimized,
     sidebarWidth: Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, layout.sidebarWidth)),
     sidebarCollapsed: layout.sidebarCollapsed,
+    hidden: layout.hidden,
   };
 }
 
@@ -117,6 +120,10 @@ export function usePanelLayout() {
 
   const toggleSidebarCollapsed = () => {
     updateLayout({ sidebarCollapsed: !layoutRef.current.sidebarCollapsed });
+  };
+
+  const toggleHidden = () => {
+    updateLayout({ hidden: !layoutRef.current.hidden });
   };
 
   const startDrag = (startEvent: React.PointerEvent<HTMLElement>) => {
@@ -249,6 +256,7 @@ export function usePanelLayout() {
     updateLayout,
     toggleMinimized,
     toggleSidebarCollapsed,
+    toggleHidden,
     startDrag,
     startResize,
     startWestEdgeResize,

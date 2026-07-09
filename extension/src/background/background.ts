@@ -2,6 +2,7 @@ import type { ContentToBackgroundMessage, LLMProviderId, ModelInfo, ServerConfig
 import { PORT_NAME } from "../lib/messaging.js";
 import {
   DEFAULT_SERVER_URL,
+  STORAGE_KEY_AWS_PROFILE,
   STORAGE_KEY_MODEL_ID,
   STORAGE_KEY_PROVIDER,
   STORAGE_KEY_SERVER_URL,
@@ -22,6 +23,11 @@ async function getProviderId(): Promise<string | undefined> {
 async function getModelId(): Promise<string | undefined> {
   const stored = await chrome.storage.local.get(STORAGE_KEY_MODEL_ID);
   return stored[STORAGE_KEY_MODEL_ID] || undefined;
+}
+
+async function getAwsProfile(): Promise<string | undefined> {
+  const stored = await chrome.storage.local.get(STORAGE_KEY_AWS_PROFILE);
+  return stored[STORAGE_KEY_AWS_PROFILE] || undefined;
 }
 
 chrome.commands.onCommand.addListener(async (command) => {
@@ -85,6 +91,19 @@ chrome.runtime.onConnect.addListener((port) => {
       return;
     }
 
+    if (message.type === "requestAwsProfiles") {
+      try {
+        const res = await fetchWithTimeout(`${serverUrl}/api/aws-profiles`);
+        if (res.ok) {
+          const data: { profiles: string[]; currentProfile: string | null } = await res.json();
+          port.postMessage({ type: "awsProfiles", profiles: data.profiles, currentProfile: data.currentProfile });
+        }
+      } catch {
+        // silently ignore — aws profiles are optional
+      }
+      return;
+    }
+
     if (message.type !== "requestGuidance") return;
 
     const { requestId } = message.request;
@@ -96,6 +115,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     const providerId = await getProviderId();
     const modelId = await getModelId();
+    const awsProfile = await getAwsProfile();
 
     let response: Response;
     try {
@@ -106,6 +126,7 @@ chrome.runtime.onConnect.addListener((port) => {
           ...message.request,
           provider: message.request.provider ?? providerId,
           modelId: message.request.modelId ?? modelId,
+          awsProfile: awsProfile || undefined,
         }),
         signal: requestAbort.signal,
       });

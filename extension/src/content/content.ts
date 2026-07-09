@@ -142,6 +142,10 @@ async function main() {
       port.postMessage({ type: "requestServerInfo" });
     },
 
+    onRequestAwsProfiles: () => {
+      port.postMessage({ type: "requestAwsProfiles" });
+    },
+
     onCancelHint: () => {
       if (activeRequestId) {
         port.postMessage({ type: "cancelGuidance", requestId: activeRequestId });
@@ -200,6 +204,8 @@ async function main() {
       panel.onServerInfoLoaded(message.config, message.modelsByProvider);
     } else if (message.type === "serverInfoError") {
       panel.onServerInfoFailed(message.message);
+    } else if (message.type === "awsProfiles") {
+      panel.onAwsProfilesLoaded(message.profiles, message.currentProfile);
     }
     // "pong" needs no handling — receiving it just confirms the port is alive.
   }
