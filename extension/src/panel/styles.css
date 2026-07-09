@@ -706,25 +706,6 @@
   gap: 4px;
 }
 
-.composer-depth-btn {
-  flex-shrink: 0;
-  cursor: pointer;
-  border: none !important;
-  border-radius: 4px;
-  background: transparent !important;
-  color: var(--text-muted) !important;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 8px;
-  white-space: nowrap;
-  transition: color 0.1s ease, background 0.1s ease;
-}
-
-.composer-depth-btn:hover {
-  color: var(--text) !important;
-  background: var(--border) !important;
-}
-
 .composer-send-btn {
   flex-shrink: 0;
   display: flex;
@@ -808,6 +789,132 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+
+/* Step pills */
+
+.hint-level-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 2px;
+}
+
+.hint-level-step-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.hint-level-connector {
+  position: absolute;
+  top: 8px;
+  right: 50%;
+  left: -50%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.hint-level-connector.filled {
+  background: var(--accent);
+}
+
+.hint-level-step {
+  position: relative;
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: var(--bg-elevated) !important;
+  border: 2px solid var(--border) !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.hint-level-step.passed {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.hint-level-step.active {
+  background: var(--bg-elevated) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, 0.25);
+}
+
+.hint-level-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  display: block;
+  transition: background 0.15s;
+}
+
+.hint-level-step.passed .hint-level-dot {
+  background: white;
+}
+
+.hint-level-step.active .hint-level-dot {
+  background: var(--accent);
+}
+
+.hint-level-step-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Tooltip */
+
+.hint-level-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  width: 160px;
+  font-size: 11px;
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 100;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.4;
+}
+
+.hint-level-tooltip strong {
+  color: var(--accent);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.hint-level-tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  margin-left: -5px;
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-top-color: var(--border);
+}
+
+.hint-level-tooltip-visible {
+  display: flex;
+}
+
 
 .panel-footer {
   flex-shrink: 0;

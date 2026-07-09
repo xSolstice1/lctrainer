@@ -48,6 +48,80 @@ const PRESSURE_LEVEL_LABELS: Record<PressureLevel, string> = {
   stress: "Stress",
 };
 
+const HINT_LEVEL_DESCRIPTIONS: Record<HintLevel, string> = {
+  0: "One sentence — a concept or question to point you in the right direction. No code.",
+  1: "A guiding question or observation about your approach. Still no code.",
+  2: "A step-by-step pseudocode outline you can implement from. No runnable code.",
+  3: "A complete working solution with explanation. Use sparingly.",
+};
+
+const TOOLTIP_WIDTH = 160;
+const TOOLTIP_PADDING = 8;
+
+function HintLevelPicker({ value, onChange }: { value: HintLevel; onChange: (l: HintLevel) => void }) {
+  const [tooltipStyles, setTooltipStyles] = useState<Record<number, { left: number; arrowLeft: number }>>({});
+  const wrapperRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = (level: number) => {
+    const wrapper = wrapperRefs.current[level];
+    const container = containerRef.current;
+    if (!wrapper || !container) return;
+
+    const panelEl = container.closest(".lctrainer-panel") ?? container;
+    const panelRect = panelEl.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+
+    const dotCentreInPanel = wrapperRect.left + wrapperRect.width / 2 - panelRect.left;
+    const idealLeft = dotCentreInPanel - TOOLTIP_WIDTH / 2;
+    const clampedLeft = Math.max(TOOLTIP_PADDING, Math.min(idealLeft, panelRect.width - TOOLTIP_WIDTH - TOOLTIP_PADDING));
+    const wrapperLeftInPanel = wrapperRect.left - panelRect.left;
+    const tooltipLeftRelWrapper = clampedLeft - wrapperLeftInPanel;
+    const arrowLeft = dotCentreInPanel - clampedLeft;
+
+    setTooltipStyles((prev) => ({ ...prev, [level]: { left: tooltipLeftRelWrapper, arrowLeft } }));
+  };
+
+  return (
+    <div className="hint-level-steps" ref={containerRef}>
+      {([0, 1, 2, 3] as HintLevel[]).map((level, i) => {
+        const ts = tooltipStyles[level];
+        return (
+          <div
+            key={level}
+            className="hint-level-step-wrapper"
+            ref={(el) => { wrapperRefs.current[level] = el; }}
+            onMouseLeave={() => setTooltipStyles((prev) => { const n = { ...prev }; delete n[level]; return n; })}
+          >
+            {i > 0 && (
+              <div className={`hint-level-connector${value >= level ? " filled" : ""}`} />
+            )}
+            <button
+              type="button"
+              className={`hint-level-step${value === level ? " active" : ""}${value > level ? " passed" : ""}`}
+              onClick={() => onChange(level)}
+              onMouseEnter={() => handleMouseEnter(level)}
+            >
+              <span className="hint-level-dot" />
+            </button>
+            {ts && (
+              <div
+                className="hint-level-tooltip hint-level-tooltip-visible"
+                style={{ left: ts.left, right: "auto" }}
+              >
+                <strong>{HINT_LEVEL_LABELS[level]}</strong>
+                <span>{HINT_LEVEL_DESCRIPTIONS[level]}</span>
+                <span className="hint-level-tooltip-arrow" style={{ left: ts.arrowLeft }} />
+              </div>
+            )}
+            <span className="hint-level-step-label">{HINT_LEVEL_LABELS[level]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export interface PanelHandle {
   onProblemLoaded(problem: ProblemMetadata | null): void;
   onGuidanceChunk(chunk: GuidanceChunk): void;
@@ -329,16 +403,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   const handleEndInterview = () => {
     submitInterviewTurn("I'd like to end the interview here — please give me my final evaluation.", "grading");
   };
-
-  const buttonLabel = state.isStreaming
-    ? "Thinking..."
-    : state.hintLevel === 3
-      ? "Get full solution"
-      : state.hintLevel === 2
-        ? "Get pseudocode"
-        : state.questionText.trim()
-          ? "Ask"
-          : "Get a hint";
 
   const effectiveProviderId = state.selectedProviderId || state.serverConfig?.defaultProvider || "";
   const FALLBACK_PROVIDERS: { id: LLMProviderId; label: string }[] = [
@@ -752,6 +816,10 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               )
             ) : (
               <>
+                <HintLevelPicker
+                  value={state.hintLevel}
+                  onChange={(level) => dispatch({ type: "hintLevelChanged", hintLevel: level })}
+                />
                 <div className="composer-bar">
                   <textarea
                     className="composer-input"
@@ -768,14 +836,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                   />
                   <div className="composer-toolbar">
                     <div className="composer-toolbar-left">
-                      <button
-                        type="button"
-                        className="composer-depth-btn"
-                        title="Cycle hint depth"
-                        onClick={() => dispatch({ type: "hintLevelChanged", hintLevel: ((state.hintLevel + 1) % 4) as HintLevel })}
-                      >
-                        {HINT_LEVEL_LABELS[state.hintLevel]}
-                      </button>
                       <button
                         type="button"
                         className="composer-action-btn"
