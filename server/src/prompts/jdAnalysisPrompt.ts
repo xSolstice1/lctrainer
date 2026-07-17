@@ -36,7 +36,7 @@ Rules for interviewQuestions:
 - "technical": language/framework/tool-specific depth questions from the JD
 - "domain": industry/product knowledge specific to what the company does
 - Weight categories by seniority — senior/staff get more system-design; junior get more technical/behavioral
-- "sampleAnswer": REQUIRED. Write this BEFORE rationale. 4–6 sentences. Behavioral → STAR format (Situation, Task, Action, Result). Technical/system-design → concrete correct answer covering key points an interviewer looks for.
+- "sampleAnswer": REQUIRED. Write this BEFORE rationale. 2–3 sentences max. Behavioral → 1 sentence context + 1 sentence action + 1 sentence result. Technical/system-design → direct answer hitting the key points, no fluff.
 - "rationale": 1 sentence explaining why this question is likely given the specific JD`;
 
   const user = `Job description:\n\n${jdText}`;
