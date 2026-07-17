@@ -24,7 +24,8 @@ async function accumulateOpenAiCompat(
   headers: Record<string, string>,
   modelId: string,
   system: string,
-  user: string
+  user: string,
+  maxTokens: number
 ): Promise<string> {
   let text = "";
   for await (const chunk of streamOpenAiCompatChat({
@@ -33,7 +34,7 @@ async function accumulateOpenAiCompat(
     modelId,
     systemPrompt: system,
     userMessage: user,
-    maxTokens: 4096,
+    maxTokens,
     requestFailedPrefix: "LLM request failed",
     streamErrorPrefix: "LLM stream error",
   })) {
@@ -48,14 +49,15 @@ async function accumulateBedrock(
   config: AppConfig,
   modelId: string,
   system: string,
-  user: string
+  user: string,
+  maxTokens: number
 ): Promise<string> {
   const client = new BedrockRuntimeClient({ region: config.aws.region });
   const payload = {
     anthropic_version: "bedrock-2023-05-31",
     system,
     messages: [{ role: "user", content: user }],
-    max_tokens: 2048,
+    max_tokens: maxTokens,
   };
   const response = await client.send(
     new InvokeModelWithResponseStreamCommand({
@@ -80,7 +82,13 @@ async function accumulateBedrock(
 function extractJson(raw: string): JDAnalysisResult {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonText = fenceMatch ? fenceMatch[1] : raw;
-  return JSON.parse(jsonText.trim()) as JDAnalysisResult;
+  try {
+    return JSON.parse(jsonText.trim()) as JDAnalysisResult;
+  } catch (parseErr) {
+    console.error("[jd/analyze] JSON parse failed. Raw length:", raw.length);
+    console.error("[jd/analyze] Raw tail (last 500 chars):", raw.slice(-500));
+    throw parseErr;
+  }
 }
 
 export function createJDAnalysisRouter(config: AppConfig, providers: ProviderRegistry): Router {
@@ -96,6 +104,10 @@ export function createJDAnalysisRouter(config: AppConfig, providers: ProviderReg
     const { jdText, provider: providerId, modelId, awsProfile, lcQuestionCount, interviewQuestionCount } = parsed.data;
     const effectiveProvider = providerId ?? config.defaultProvider;
     const effectiveModelId = modelId || defaultModelIdFor(config, effectiveProvider);
+    // ~120 tokens per LC question + ~80 per interview question + 500 base overhead
+    const maxTokens = Math.ceil(lcQuestionCount * 120 + interviewQuestionCount * 80 + 500);
+
+    console.log(`[jd/analyze] provider=${effectiveProvider} model=${effectiveModelId} lcCount=${lcQuestionCount} iqCount=${interviewQuestionCount} maxTokens=${maxTokens}`);
 
     const { system, user } = buildJDAnalysisPrompt(jdText, lcQuestionCount, interviewQuestionCount);
 
@@ -104,14 +116,15 @@ export function createJDAnalysisRouter(config: AppConfig, providers: ProviderReg
 
       if (effectiveProvider === "bedrock") {
         if (awsProfile) process.env.AWS_PROFILE = awsProfile;
-        rawText = await accumulateBedrock(config, effectiveModelId, system, user);
+        rawText = await accumulateBedrock(config, effectiveModelId, system, user, maxTokens);
       } else if (effectiveProvider === "openrouter") {
         rawText = await accumulateOpenAiCompat(
           "https://openrouter.ai/api/v1/chat/completions",
           { Authorization: `Bearer ${config.openRouter.apiKey}` },
           effectiveModelId,
           system,
-          user
+          user,
+          maxTokens
         );
       } else {
         rawText = await accumulateOpenAiCompat(
@@ -119,13 +132,17 @@ export function createJDAnalysisRouter(config: AppConfig, providers: ProviderReg
           {},
           effectiveModelId,
           system,
-          user
+          user,
+          maxTokens
         );
       }
 
+      console.log(`[jd/analyze] raw response length: ${rawText.length} chars`);
       const result = extractJson(rawText);
+      console.log(`[jd/analyze] parsed ok — topics=${result.topics?.length} lcQ=${result.suggestedQuestions?.length} iqQ=${result.interviewQuestions?.length}`);
       res.json(result);
     } catch (err: any) {
+      console.error("[jd/analyze] error:", err?.message);
       res.status(500).json({ error: err?.message ?? "JD analysis failed" });
     }
   });
