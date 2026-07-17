@@ -153,11 +153,11 @@ async function main() {
       }
     },
 
-    onRequestJDAnalysis: (jdText, provider, modelId, awsProfile) => {
+    onRequestJDAnalysis: (jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount) => {
       return new Promise<JDAnalysisResult>((resolve, reject) => {
         const requestId = crypto.randomUUID();
         pendingJDRequests.set(requestId, { resolve, reject });
-        port.postMessage({ type: "requestJDAnalysis", requestId, jdText, provider, modelId, awsProfile });
+        port.postMessage({ type: "requestJDAnalysis", requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount });
       });
     },
   });

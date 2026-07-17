@@ -164,7 +164,7 @@ interface PanelAppProps {
   onRequestServerInfo: () => void;
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
-  onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<JDAnalysisResult>;
+  onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string, lcQuestionCount?: number, interviewQuestionCount?: number) => Promise<JDAnalysisResult>;
 }
 
 export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp(
@@ -935,12 +935,14 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
         }
         jdTab={
           <JDAnalyzerPanel
-            onRequestJDAnalysis={(jdText) =>
+            onRequestJDAnalysis={(jdText, lcQuestionCount, interviewQuestionCount) =>
               onRequestJDAnalysis(
                 jdText,
                 state.selectedProviderId || undefined,
                 state.selectedModelId || undefined,
                 selectedAwsProfile || undefined,
+                lcQuestionCount,
+                interviewQuestionCount,
               )
             }
             onPlanSaved={() => setHistoryRefreshKey((k) => k + 1)}

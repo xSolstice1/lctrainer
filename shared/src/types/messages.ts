@@ -7,7 +7,7 @@ export type ContentToBackgroundMessage =
   | { type: "cancelGuidance"; requestId: string }
   | { type: "requestServerInfo" }
   | { type: "requestAwsProfiles" }
-  | { type: "requestJDAnalysis"; requestId: string; jdText: string; provider?: string; modelId?: string; awsProfile?: string }
+  | { type: "requestJDAnalysis"; requestId: string; jdText: string; provider?: string; modelId?: string; awsProfile?: string; lcQuestionCount?: number; interviewQuestionCount?: number }
   | { type: "ping" };
 
 /** Messages sent down the chrome.runtime.Port from background worker to content script. */

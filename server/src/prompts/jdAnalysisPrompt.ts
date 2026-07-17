@@ -1,10 +1,10 @@
-export function buildJDAnalysisPrompt(jdText: string): { system: string; user: string } {
+export function buildJDAnalysisPrompt(jdText: string, lcQuestionCount = 15, interviewQuestionCount = 12): { system: string; user: string } {
   const system = `You are an expert technical recruiter and LeetCode coach.
 Given a job description, you will:
 1. Identify the company, role title, and seniority level.
 2. Extract 3–6 key technical topics that interviews at this company/role commonly test.
-3. Suggest 8–15 real LeetCode problems (by exact slug and title) that are highly relevant to this role.
-4. Generate 8–12 interview questions the interviewer is likely to ask, covering all relevant categories.
+3. Suggest exactly ${lcQuestionCount} real LeetCode problems (by exact slug and title) that are highly relevant to this role.
+4. Generate exactly ${interviewQuestionCount} interview questions the interviewer is likely to ask, covering all relevant categories.
 
 You MUST respond with valid JSON only — no markdown fences, no explanation outside the JSON.
 

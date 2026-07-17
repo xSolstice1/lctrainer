@@ -56,7 +56,7 @@ interface MountPanelOptions {
   onRequestServerInfo: () => void;
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
-  onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<JDAnalysisResult>;
+  onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string, lcQuestionCount?: number, interviewQuestionCount?: number) => Promise<JDAnalysisResult>;
 }
 
 /**

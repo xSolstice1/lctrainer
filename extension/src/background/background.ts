@@ -105,12 +105,14 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 
     if (message.type === "requestJDAnalysis") {
-      const { requestId, jdText, provider, modelId, awsProfile } = message;
+      const { requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount } = message;
       try {
-        const body: Record<string, string> = { jdText };
+        const body: Record<string, string | number> = { jdText };
         if (provider) body.provider = provider;
         if (modelId) body.modelId = modelId;
         if (awsProfile) body.awsProfile = awsProfile;
+        if (lcQuestionCount) body.lcQuestionCount = lcQuestionCount;
+        if (interviewQuestionCount) body.interviewQuestionCount = interviewQuestionCount;
         const res = await fetch(`${serverUrl}/api/jd/analyze`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

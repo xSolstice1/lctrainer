@@ -4,7 +4,7 @@ import { saveCustomStudyPlan } from "../lib/studyPlans.js";
 import { canonicalProblemUrl } from "../lib/leetcodeUrls.js";
 
 interface JDAnalyzerPanelProps {
-  onRequestJDAnalysis: (jdText: string) => Promise<JDAnalysisResult>;
+  onRequestJDAnalysis: (jdText: string, lcQuestionCount?: number, interviewQuestionCount?: number) => Promise<JDAnalysisResult>;
   onPlanSaved: () => void;
 }
 
@@ -36,6 +36,8 @@ const CATEGORY_CLASS: Record<string, string> = {
 
 export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzerPanelProps) {
   const [jdText, setJdText] = useState("");
+  const [lcCount, setLcCount] = useState(15);
+  const [iqCount, setIqCount] = useState(12);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JDAnalysisResult | null>(null);
@@ -55,7 +57,7 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
     setLoading(true);
 
     try {
-      const data = await onRequestJDAnalysis(text);
+      const data = await onRequestJDAnalysis(text, lcCount, iqCount);
       setResult(data);
       setSelected(new Set(data.suggestedQuestions.map((q) => q.slug)));
     } catch (err: any) {
@@ -128,6 +130,31 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
         onChange={(e) => setJdText(e.target.value)}
         rows={6}
       />
+
+      <div className="jd-count-controls">
+        <label className="jd-count-label">
+          LC problems
+          <input
+            type="number"
+            className="jd-count-input"
+            min={5}
+            max={50}
+            value={lcCount}
+            onChange={(e) => setLcCount(Math.min(50, Math.max(5, Number(e.target.value))))}
+          />
+        </label>
+        <label className="jd-count-label">
+          Interview Qs
+          <input
+            type="number"
+            className="jd-count-input"
+            min={5}
+            max={30}
+            value={iqCount}
+            onChange={(e) => setIqCount(Math.min(30, Math.max(5, Number(e.target.value))))}
+          />
+        </label>
+      </div>
 
       <button
         type="button"

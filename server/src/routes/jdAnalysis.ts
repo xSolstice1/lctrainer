@@ -15,6 +15,8 @@ const jdAnalysisRequestSchema = z.object({
   provider: z.enum(["local", "bedrock", "openrouter"]).optional(),
   modelId: z.string().optional(),
   awsProfile: z.string().optional(),
+  lcQuestionCount: z.coerce.number().int().min(5).max(50).optional().default(15),
+  interviewQuestionCount: z.coerce.number().int().min(5).max(30).optional().default(12),
 });
 
 async function accumulateOpenAiCompat(
@@ -31,7 +33,7 @@ async function accumulateOpenAiCompat(
     modelId,
     systemPrompt: system,
     userMessage: user,
-    maxTokens: 2048,
+    maxTokens: 4096,
     requestFailedPrefix: "LLM request failed",
     streamErrorPrefix: "LLM stream error",
   })) {
@@ -91,11 +93,11 @@ export function createJDAnalysisRouter(config: AppConfig, providers: ProviderReg
       return;
     }
 
-    const { jdText, provider: providerId, modelId, awsProfile } = parsed.data;
+    const { jdText, provider: providerId, modelId, awsProfile, lcQuestionCount, interviewQuestionCount } = parsed.data;
     const effectiveProvider = providerId ?? config.defaultProvider;
     const effectiveModelId = modelId || defaultModelIdFor(config, effectiveProvider);
 
-    const { system, user } = buildJDAnalysisPrompt(jdText);
+    const { system, user } = buildJDAnalysisPrompt(jdText, lcQuestionCount, interviewQuestionCount);
 
     try {
       let rawText: string;

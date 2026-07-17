@@ -3,6 +3,8 @@ export interface JDAnalysisRequest {
   provider?: string;
   modelId?: string;
   awsProfile?: string;
+  lcQuestionCount?: number;
+  interviewQuestionCount?: number;
 }
 
 export type ImportanceLevel = "high" | "medium" | "low";
