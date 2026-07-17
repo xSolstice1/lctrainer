@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { JDAnalysisResult, StudyPlan } from "@lctrainer/shared";
+import type { JDAnalysisResult, StudyPlan, StudyPlanInterviewQuestion } from "@lctrainer/shared";
 import { saveCustomStudyPlan } from "../lib/studyPlans.js";
 import { canonicalProblemUrl } from "../lib/leetcodeUrls.js";
 
@@ -42,8 +42,9 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JDAnalysisResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedIq, setSelectedIq] = useState<Set<number>>(new Set());
+  const [expandedIq, setExpandedIq] = useState<Set<number>>(new Set());
   const [savedSlug, setSavedSlug] = useState<string | null>(null);
-  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
   const handleAnalyze = async () => {
     const text = jdText.trim();
@@ -60,6 +61,8 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
       const data = await onRequestJDAnalysis(text, lcCount, iqCount);
       setResult(data);
       setSelected(new Set(data.suggestedQuestions.map((q) => q.slug)));
+      setSelectedIq(new Set(data.interviewQuestions?.map((_, i) => i) ?? []));
+      setExpandedIq(new Set());
     } catch (err: any) {
       setError(err?.message ?? "Analysis failed");
     } finally {
@@ -67,10 +70,21 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
     }
   };
 
-  const handleCopy = (text: string, idx: number) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedIdx(idx);
-      setTimeout(() => setCopiedIdx(null), 1500);
+  const toggleExpandIq = (idx: number) => {
+    setExpandedIq((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleIq = (idx: number) => {
+    setSelectedIq((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
     });
   };
 
@@ -85,16 +99,25 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
 
   const handleSavePlan = async () => {
     if (!result) return;
-    const questions = result.suggestedQuestions.filter((q) => selected.has(q.slug));
-    if (questions.length === 0) {
-      setError("Select at least one question.");
+    const lcQuestions = result.suggestedQuestions.filter((q) => selected.has(q.slug));
+    const iqQuestions: StudyPlanInterviewQuestion[] = (result.interviewQuestions ?? [])
+      .filter((_, i) => selectedIq.has(i))
+      .map((iq) => ({
+        question: iq.question,
+        category: iq.category,
+        rationale: iq.rationale,
+        sampleAnswer: iq.sampleAnswer,
+      }));
+
+    if (lcQuestions.length === 0 && iqQuestions.length === 0) {
+      setError("Select at least one LC problem or interview question.");
       return;
     }
 
     const slug = `jd-${result.company.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
     const nowMs = Date.now();
-    const topicGroups = new Map<string, typeof questions>();
-    for (const q of questions) {
+    const topicGroups = new Map<string, typeof lcQuestions>();
+    for (const q of lcQuestions) {
       if (!topicGroups.has(q.topic)) topicGroups.set(q.topic, []);
       topicGroups.get(q.topic)!.push(q);
     }
@@ -110,6 +133,7 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
       fetchedAtMs: nowMs,
       source: "jd-generated",
       jdSnippet: jdText.slice(0, 300),
+      interviewQuestions: iqQuestions.length > 0 ? iqQuestions : undefined,
     };
 
     await saveCustomStudyPlan(plan);
@@ -191,26 +215,51 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
 
           {result.interviewQuestions?.length > 0 && (
             <div className="jd-interview-questions">
-              <div className="jd-section-title">Interview questions</div>
-              {result.interviewQuestions.map((iq, idx) => (
-                <div
-                  key={idx}
-                  className="jd-iq-row"
-                  onClick={() => handleCopy(iq.question, idx)}
-                  title="Click to copy"
-                >
-                  <div className="jd-iq-header">
-                    <span className={`jd-iq-category ${CATEGORY_CLASS[iq.category] ?? ""}`}>
-                      {CATEGORY_LABEL[iq.category] ?? iq.category}
-                    </span>
-                    <span className="jd-iq-copy-hint">
-                      {copiedIdx === idx ? "Copied!" : "Copy"}
-                    </span>
+              <div className="jd-section-title">
+                Interview questions
+                <span className="jd-selected-count">
+                  {selectedIq.size}/{result.interviewQuestions.length} selected
+                </span>
+              </div>
+              {result.interviewQuestions.map((iq, idx) => {
+                const isExpanded = expandedIq.has(idx);
+                const isSelected = selectedIq.has(idx);
+                return (
+                  <div key={idx} className={`jd-iq-row${isSelected ? " selected" : ""}`}>
+                    <div className="jd-iq-main" onClick={() => toggleExpandIq(idx)}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleIq(idx)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="jd-question-check"
+                      />
+                      <div className="jd-iq-body">
+                        <div className="jd-iq-header">
+                          <span className={`jd-iq-category ${CATEGORY_CLASS[iq.category] ?? ""}`}>
+                            {CATEGORY_LABEL[iq.category] ?? iq.category}
+                          </span>
+                          <span className="jd-iq-expand-hint">{isExpanded ? "▲" : "▼"}</span>
+                        </div>
+                        <span className="jd-iq-text">{iq.question}</span>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="jd-iq-expanded">
+                        {iq.rationale && (
+                          <p className="jd-iq-rationale"><strong>Why asked:</strong> {iq.rationale}</p>
+                        )}
+                        {iq.sampleAnswer && (
+                          <div className="jd-iq-answer">
+                            <p className="jd-iq-answer-label">Sample answer</p>
+                            <p className="jd-iq-answer-text">{iq.sampleAnswer}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span className="jd-iq-text">{iq.question}</span>
-                  <span className="jd-iq-rationale">{iq.rationale}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -261,9 +310,9 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
               type="button"
               className="primary-btn jd-save-btn"
               onClick={handleSavePlan}
-              disabled={selected.size === 0}
+              disabled={selected.size === 0 && selectedIq.size === 0}
             >
-              Save as Study Plan ({selected.size})
+              Save as Study Plan ({selected.size} LC · {selectedIq.size} IQ)
             </button>
           )}
         </div>

@@ -29,6 +29,7 @@ export interface JDInterviewQuestion {
   question: string;
   category: InterviewQuestionCategory;
   rationale: string;
+  sampleAnswer: string;
 }
 
 export interface JDAnalysisResult {

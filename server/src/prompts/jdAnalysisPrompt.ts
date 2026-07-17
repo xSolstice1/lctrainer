@@ -20,7 +20,7 @@ The JSON schema:
     { "title": string, "slug": string, "difficulty": "Easy" | "Medium" | "Hard", "topic": string, "rationale": string }
   ],
   "interviewQuestions": [
-    { "question": string, "category": "behavioral" | "system-design" | "technical" | "domain", "rationale": string }
+    { "question": string, "category": "behavioral" | "system-design" | "technical" | "domain", "rationale": string, "sampleAnswer": string }
   ]
 }
 
@@ -35,7 +35,8 @@ Rules for interviewQuestions:
 - "technical": language/framework/tool-specific depth questions from the JD
 - "domain": industry/product knowledge specific to what the company does
 - Weight categories by seniority — senior/staff roles get more system-design; junior roles get more technical/behavioral
-- Each rationale explains why this question is likely given the specific JD`;
+- Each rationale explains why this question is likely given the specific JD
+- sampleAnswer: a concise but complete model answer (3-6 sentences) tailored to this role and company. For behavioral questions use the STAR structure (Situation, Task, Action, Result). For technical/system-design, give a concrete correct answer with key points an interviewer would look for.`;
 
   const user = `Job description:\n\n${jdText}`;
 
