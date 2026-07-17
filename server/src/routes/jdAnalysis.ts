@@ -82,13 +82,30 @@ async function accumulateBedrock(
 function extractJson(raw: string): JDAnalysisResult {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonText = fenceMatch ? fenceMatch[1] : raw;
+  let parsed: any;
   try {
-    return JSON.parse(jsonText.trim()) as JDAnalysisResult;
+    parsed = JSON.parse(jsonText.trim());
   } catch (parseErr) {
     console.error("[jd/analyze] JSON parse failed. Raw length:", raw.length);
     console.error("[jd/analyze] Raw tail (last 500 chars):", raw.slice(-500));
     throw parseErr;
   }
+
+  // Normalise snake_case / alternate key names some models emit
+  if (Array.isArray(parsed.interviewQuestions)) {
+    parsed.interviewQuestions = parsed.interviewQuestions.map((iq: any) => ({
+      ...iq,
+      sampleAnswer: iq.sampleAnswer ?? iq.sample_answer ?? iq.answer ?? iq.example_answer ?? "",
+      rationale: iq.rationale ?? iq.why ?? "",
+    }));
+    if (parsed.interviewQuestions.length > 0) {
+      const first = parsed.interviewQuestions[0];
+      console.log("[jd/analyze] first IQ keys:", Object.keys(first));
+      console.log("[jd/analyze] first IQ sampleAnswer length:", (first.sampleAnswer ?? "").length);
+    }
+  }
+
+  return parsed as JDAnalysisResult;
 }
 
 export function createJDAnalysisRouter(config: AppConfig, providers: ProviderRegistry): Router {
