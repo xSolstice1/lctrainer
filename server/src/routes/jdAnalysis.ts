@@ -82,9 +82,11 @@ async function accumulateBedrock(
 function extractJson(raw: string): JDAnalysisResult {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonText = fenceMatch ? fenceMatch[1] : raw;
+  // Strip unescaped control characters that some models emit inside string values
+  const sanitized = jsonText.trim().replace(/[\x00-\x09\x0b\x0c\x0e-\x1f]/g, " ");
   let parsed: any;
   try {
-    parsed = JSON.parse(jsonText.trim());
+    parsed = JSON.parse(sanitized);
   } catch (parseErr) {
     console.error("[jd/analyze] JSON parse failed. Raw length:", raw.length);
     console.error("[jd/analyze] Raw tail (last 500 chars):", raw.slice(-500));
