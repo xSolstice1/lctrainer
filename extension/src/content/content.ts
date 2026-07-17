@@ -243,6 +243,11 @@ async function main() {
         panel.onConnectionError("Lost connection to the extension background worker. Please try again.");
         activeRequestId = null;
       }
+      // Reject any pending JD analysis promises so the panel doesn't hang.
+      for (const pending of pendingJDRequests.values()) {
+        pending.reject(new Error("Connection lost — please try again."));
+      }
+      pendingJDRequests.clear();
       connect();
     });
   }

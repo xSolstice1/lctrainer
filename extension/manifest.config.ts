@@ -5,7 +5,7 @@ export default defineManifest({
   name: "Leetcode Trainer — Live AI Trainer",
   version: "0.2.0",
   description: "Socratic AI hints for your live LeetCode code, powered by a local model (Ollama), AWS Bedrock, or OpenRouter.",
-  permissions: ["storage"],
+  permissions: ["storage", "alarms"],
   host_permissions: ["https://leetcode.com/*", "https://www.hackerrank.com/*"],
   commands: {
     "request-hint": {
