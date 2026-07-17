@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { STORAGE_KEY_SIDEBAR_TAB } from "../lib/constants.js";
 
-export type SidebarTabId = "solved" | "attempted" | "studyplan";
+export type SidebarTabId = "solved" | "attempted" | "studyplan" | "jd";
 
-const VALID_TAB_IDS: SidebarTabId[] = ["solved", "attempted", "studyplan"];
+const VALID_TAB_IDS: SidebarTabId[] = ["solved", "attempted", "studyplan", "jd"];
 
 interface SidebarProps {
   theme: "dark" | "light";
@@ -21,12 +21,14 @@ interface SidebarProps {
   solvedTab: ReactNode;
   attemptedTab: ReactNode;
   studyPlanTab: ReactNode;
+  jdTab: ReactNode;
 }
 
 const TAB_LABELS: Record<SidebarTabId, string> = {
   solved: "Solved",
   attempted: "Attempted",
   studyplan: "Study Plan",
+  jd: "JD Analyzer",
 };
 
 
@@ -46,6 +48,7 @@ export function Sidebar({
   solvedTab,
   attemptedTab,
   studyPlanTab,
+  jdTab,
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTabId>("solved");
 
@@ -90,7 +93,13 @@ export function Sidebar({
         </button>
       </div>
       <div className="sidebar-body">
-        {activeTab === "solved" ? solvedTab : activeTab === "attempted" ? attemptedTab : studyPlanTab}
+        {activeTab === "solved"
+          ? solvedTab
+          : activeTab === "attempted"
+          ? attemptedTab
+          : activeTab === "jd"
+          ? jdTab
+          : studyPlanTab}
       </div>
       <div className="edge-resize-handle edge-resize-handle-n" onPointerDown={onNorthEdgeResizeStart} />
       <div className="edge-resize-handle edge-resize-handle-e" onPointerDown={onEastEdgeResizeStart} />

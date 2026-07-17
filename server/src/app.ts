@@ -5,6 +5,7 @@ import type { ProviderRegistry } from "./providers/index.js";
 import { createGuidanceRouter } from "./routes/guidance.js";
 import { createHealthRouter } from "./routes/health.js";
 import { createConfigRouter } from "./routes/config.js";
+import { createJDAnalysisRouter } from "./routes/jdAnalysis.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 export function createApp(config: AppConfig, providers: ProviderRegistry) {
@@ -39,6 +40,7 @@ export function createApp(config: AppConfig, providers: ProviderRegistry) {
   app.use(createHealthRouter());
   app.use(createConfigRouter(config, providers));
   app.use(createGuidanceRouter(config, providers));
+  app.use(createJDAnalysisRouter(config, providers));
 
   app.use(errorHandler);
 

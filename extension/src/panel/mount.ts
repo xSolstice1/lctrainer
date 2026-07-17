@@ -5,6 +5,7 @@ import type {
   HintLevel,
   InterviewLevel,
   InterviewPhase,
+  JDAnalysisResult,
   LLMProviderId,
   ModelInfo,
   PressureLevel,
@@ -55,6 +56,7 @@ interface MountPanelOptions {
   onRequestServerInfo: () => void;
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
+  onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<JDAnalysisResult>;
 }
 
 /**
@@ -98,6 +100,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
       onRequestServerInfo: options.onRequestServerInfo,
       onRequestAwsProfiles: options.onRequestAwsProfiles,
       onCancelHint: options.onCancelHint,
+      onRequestJDAnalysis: options.onRequestJDAnalysis,
     })
   );
 

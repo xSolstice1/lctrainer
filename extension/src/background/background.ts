@@ -104,6 +104,31 @@ chrome.runtime.onConnect.addListener((port) => {
       return;
     }
 
+    if (message.type === "requestJDAnalysis") {
+      const { requestId, jdText, provider, modelId, awsProfile } = message;
+      try {
+        const body: Record<string, string> = { jdText };
+        if (provider) body.provider = provider;
+        if (modelId) body.modelId = modelId;
+        if (awsProfile) body.awsProfile = awsProfile;
+        const res = await fetch(`${serverUrl}/api/jd/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string };
+          port.postMessage({ type: "jdAnalysisError", requestId, message: err.error ?? `Server error ${res.status}` });
+        } else {
+          const result = await res.json();
+          port.postMessage({ type: "jdAnalysisResult", requestId, result });
+        }
+      } catch (err: any) {
+        port.postMessage({ type: "jdAnalysisError", requestId, message: err?.message ?? "JD analysis failed" });
+      }
+      return;
+    }
+
     if (message.type !== "requestGuidance") return;
 
     const { requestId } = message.request;

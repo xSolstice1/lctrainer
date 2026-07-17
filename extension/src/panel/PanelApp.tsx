@@ -4,6 +4,7 @@ import type {
   HintLevel,
   InterviewLevel,
   InterviewPhase,
+  JDAnalysisResult,
   LLMProviderId,
   ModelInfo,
   PressureLevel,
@@ -18,6 +19,7 @@ import { Sidebar } from "./Sidebar.js";
 import { SolvedPanel } from "./SolvedPanel.js";
 import { AttemptedPanel } from "./AttemptedPanel.js";
 import { StudyPlanPanel } from "./StudyPlanPanel.js";
+import { JDAnalyzerPanel } from "./JDAnalyzerPanel.js";
 import { ThreadPanel } from "./ThreadPanel.js";
 import { InterviewPanel } from "./InterviewPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
@@ -162,6 +164,7 @@ interface PanelAppProps {
   onRequestServerInfo: () => void;
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
+  onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<JDAnalysisResult>;
 }
 
 export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp(
@@ -175,6 +178,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onRequestServerInfo,
     onRequestAwsProfiles,
     onCancelHint,
+    onRequestJDAnalysis,
   },
   ref
 ) {
@@ -927,6 +931,19 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             currentSlug={state.problem?.slug}
             refreshKey={historyRefreshKey}
             onPlansChanged={() => setHistoryRefreshKey((k) => k + 1)}
+          />
+        }
+        jdTab={
+          <JDAnalyzerPanel
+            onRequestJDAnalysis={(jdText) =>
+              onRequestJDAnalysis(
+                jdText,
+                state.selectedProviderId || undefined,
+                state.selectedModelId || undefined,
+                selectedAwsProfile || undefined,
+              )
+            }
+            onPlanSaved={() => setHistoryRefreshKey((k) => k + 1)}
           />
         }
       />

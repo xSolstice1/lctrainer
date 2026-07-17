@@ -1,0 +1,199 @@
+import { useState } from "react";
+import type { JDAnalysisResult, StudyPlan } from "@lctrainer/shared";
+import { saveCustomStudyPlan } from "../lib/studyPlans.js";
+import { canonicalProblemUrl } from "../lib/leetcodeUrls.js";
+
+interface JDAnalyzerPanelProps {
+  onRequestJDAnalysis: (jdText: string) => Promise<JDAnalysisResult>;
+  onPlanSaved: () => void;
+}
+
+const DIFFICULTY_CLASS: Record<string, string> = {
+  Easy: "difficulty-easy",
+  Medium: "difficulty-medium",
+  Hard: "difficulty-hard",
+};
+
+const IMPORTANCE_CLASS: Record<string, string> = {
+  high: "jd-importance-high",
+  medium: "jd-importance-medium",
+  low: "jd-importance-low",
+};
+
+export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzerPanelProps) {
+  const [jdText, setJdText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<JDAnalysisResult | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [savedSlug, setSavedSlug] = useState<string | null>(null);
+
+  const handleAnalyze = async () => {
+    const text = jdText.trim();
+    if (text.length < 50) {
+      setError("Paste a job description (at least 50 characters).");
+      return;
+    }
+    setError(null);
+    setResult(null);
+    setSavedSlug(null);
+    setLoading(true);
+
+    try {
+      const data = await onRequestJDAnalysis(text);
+      setResult(data);
+      setSelected(new Set(data.suggestedQuestions.map((q) => q.slug)));
+    } catch (err: any) {
+      setError(err?.message ?? "Analysis failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleQuestion = (slug: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  };
+
+  const handleSavePlan = async () => {
+    if (!result) return;
+    const questions = result.suggestedQuestions.filter((q) => selected.has(q.slug));
+    if (questions.length === 0) {
+      setError("Select at least one question.");
+      return;
+    }
+
+    const slug = `jd-${result.company.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+    const nowMs = Date.now();
+    const topicGroups = new Map<string, typeof questions>();
+    for (const q of questions) {
+      if (!topicGroups.has(q.topic)) topicGroups.set(q.topic, []);
+      topicGroups.get(q.topic)!.push(q);
+    }
+
+    const plan: StudyPlan = {
+      slug,
+      name: `${result.role} @ ${result.company}`,
+      groups: Array.from(topicGroups.entries()).map(([topic, qs]) => ({
+        name: topic,
+        questions: qs.map((q) => ({ slug: q.slug, title: q.title, difficulty: q.difficulty })),
+      })),
+      addedAtMs: nowMs,
+      fetchedAtMs: nowMs,
+      source: "jd-generated",
+      jdSnippet: jdText.slice(0, 300),
+    };
+
+    await saveCustomStudyPlan(plan);
+    setSavedSlug(slug);
+    onPlanSaved();
+  };
+
+  return (
+    <div className="jd-analyzer-panel">
+      <div className="jd-analyzer-intro">
+        <p className="hint">Paste a job description to get role-specific LeetCode recommendations.</p>
+      </div>
+
+      <textarea
+        className="jd-textarea"
+        placeholder="Paste job description here..."
+        value={jdText}
+        onChange={(e) => setJdText(e.target.value)}
+        rows={6}
+      />
+
+      <button
+        type="button"
+        className="primary-btn jd-analyze-btn"
+        onClick={handleAnalyze}
+        disabled={loading || jdText.trim().length < 50}
+      >
+        {loading ? "Analyzing..." : "Analyze JD"}
+      </button>
+
+      {error && <p className="error-text">{error}</p>}
+
+      {result && (
+        <div className="jd-result">
+          <div className="jd-result-header">
+            <div className="jd-role-info">
+              <span className="jd-company">{result.company}</span>
+              <span className="jd-role">{result.role}</span>
+              {result.seniorityLevel && (
+                <span className="jd-seniority">{result.seniorityLevel}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="jd-topics">
+            <div className="jd-section-title">Key topics</div>
+            {result.topics.map((topic) => (
+              <div key={topic.name} className={`jd-topic ${IMPORTANCE_CLASS[topic.importance] ?? ""}`}>
+                <span className="jd-topic-name">{topic.name}</span>
+                <span className="jd-topic-rationale">{topic.rationale}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="jd-questions">
+            <div className="jd-section-title">
+              Suggested questions
+              <span className="jd-selected-count">
+                {selected.size}/{result.suggestedQuestions.length} selected
+              </span>
+            </div>
+            {result.suggestedQuestions.map((q) => (
+              <div
+                key={q.slug}
+                className={`jd-question-row${selected.has(q.slug) ? " selected" : ""}`}
+                onClick={() => toggleQuestion(q.slug)}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(q.slug)}
+                  onChange={() => toggleQuestion(q.slug)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="jd-question-check"
+                />
+                <div className="jd-question-info">
+                  <a
+                    href={canonicalProblemUrl(q.slug)}
+                    className="jd-question-title"
+                    onClick={(e) => e.stopPropagation()}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {q.title}
+                  </a>
+                  <span className={`learned-meta ${DIFFICULTY_CLASS[q.difficulty] ?? ""}`}>
+                    {q.difficulty}
+                  </span>
+                  <span className="jd-question-topic">{q.topic}</span>
+                  <span className="jd-question-rationale">{q.rationale}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {savedSlug ? (
+            <p className="jd-saved-msg">Saved to Study Plan!</p>
+          ) : (
+            <button
+              type="button"
+              className="primary-btn jd-save-btn"
+              onClick={handleSavePlan}
+              disabled={selected.size === 0}
+            >
+              Save as Study Plan ({selected.size})
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

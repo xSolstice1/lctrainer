@@ -23,7 +23,7 @@ export default defineManifest({
   },
   content_scripts: [
     {
-      matches: ["https://leetcode.com/problems/*", "https://www.hackerrank.com/challenges/*"],
+      matches: ["https://leetcode.com/*", "https://www.hackerrank.com/challenges/*"],
       js: ["src/content/content.ts"],
       run_at: "document_idle",
     },

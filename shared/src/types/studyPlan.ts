@@ -18,4 +18,6 @@ export interface StudyPlan {
   groups: StudyPlanGroup[];
   addedAtMs: number;
   fetchedAtMs: number;
+  source?: "leetcode" | "jd-generated";
+  jdSnippet?: string;
 }
