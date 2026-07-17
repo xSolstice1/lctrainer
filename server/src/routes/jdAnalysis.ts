@@ -104,8 +104,7 @@ export function createJDAnalysisRouter(config: AppConfig, providers: ProviderReg
     const { jdText, provider: providerId, modelId, awsProfile, lcQuestionCount, interviewQuestionCount } = parsed.data;
     const effectiveProvider = providerId ?? config.defaultProvider;
     const effectiveModelId = modelId || defaultModelIdFor(config, effectiveProvider);
-    // ~120 tokens per LC question + ~220 per interview question (incl. 4-6 sentence sampleAnswer) + 800 base
-    const maxTokens = Math.ceil(lcQuestionCount * 120 + interviewQuestionCount * 220 + 800);
+    const maxTokens = 8192;
 
     console.log(`[jd/analyze] provider=${effectiveProvider} model=${effectiveModelId} lcCount=${lcQuestionCount} iqCount=${interviewQuestionCount} maxTokens=${maxTokens}`);
 
