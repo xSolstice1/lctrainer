@@ -1901,3 +1901,67 @@
   color: var(--success);
   font-weight: 600;
 }
+
+.jd-interview-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jd-iq-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+.jd-iq-row:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
+}
+
+.jd-iq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.jd-iq-category {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+}
+
+.jd-cat-behavioral   { color: #a78bfa; }
+.jd-cat-system-design { color: var(--warning); }
+.jd-cat-technical    { color: var(--accent); }
+.jd-cat-domain       { color: var(--success); }
+
+.jd-iq-copy-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.jd-iq-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.jd-iq-rationale {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

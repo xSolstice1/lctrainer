@@ -20,6 +20,20 @@ const IMPORTANCE_CLASS: Record<string, string> = {
   low: "jd-importance-low",
 };
 
+const CATEGORY_LABEL: Record<string, string> = {
+  behavioral: "Behavioral",
+  "system-design": "System Design",
+  technical: "Technical",
+  domain: "Domain",
+};
+
+const CATEGORY_CLASS: Record<string, string> = {
+  behavioral: "jd-cat-behavioral",
+  "system-design": "jd-cat-system-design",
+  technical: "jd-cat-technical",
+  domain: "jd-cat-domain",
+};
+
 export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzerPanelProps) {
   const [jdText, setJdText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,6 +41,7 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
   const [result, setResult] = useState<JDAnalysisResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [savedSlug, setSavedSlug] = useState<string | null>(null);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
   const handleAnalyze = async () => {
     const text = jdText.trim();
@@ -48,6 +63,13 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCopy = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx(null), 1500);
+    });
   };
 
   const toggleQuestion = (slug: string) => {
@@ -140,9 +162,34 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
             ))}
           </div>
 
+          {result.interviewQuestions?.length > 0 && (
+            <div className="jd-interview-questions">
+              <div className="jd-section-title">Interview questions</div>
+              {result.interviewQuestions.map((iq, idx) => (
+                <div
+                  key={idx}
+                  className="jd-iq-row"
+                  onClick={() => handleCopy(iq.question, idx)}
+                  title="Click to copy"
+                >
+                  <div className="jd-iq-header">
+                    <span className={`jd-iq-category ${CATEGORY_CLASS[iq.category] ?? ""}`}>
+                      {CATEGORY_LABEL[iq.category] ?? iq.category}
+                    </span>
+                    <span className="jd-iq-copy-hint">
+                      {copiedIdx === idx ? "Copied!" : "Copy"}
+                    </span>
+                  </div>
+                  <span className="jd-iq-text">{iq.question}</span>
+                  <span className="jd-iq-rationale">{iq.rationale}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="jd-questions">
             <div className="jd-section-title">
-              Suggested questions
+              LeetCode problems
               <span className="jd-selected-count">
                 {selected.size}/{result.suggestedQuestions.length} selected
               </span>

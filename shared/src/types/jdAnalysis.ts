@@ -21,10 +21,19 @@ export interface JDAnalysisQuestion {
   rationale: string;
 }
 
+export type InterviewQuestionCategory = "behavioral" | "system-design" | "technical" | "domain";
+
+export interface JDInterviewQuestion {
+  question: string;
+  category: InterviewQuestionCategory;
+  rationale: string;
+}
+
 export interface JDAnalysisResult {
   company: string;
   role: string;
   seniorityLevel: string;
   topics: JDAnalysisTopic[];
   suggestedQuestions: JDAnalysisQuestion[];
+  interviewQuestions: JDInterviewQuestion[];
 }
