@@ -38,6 +38,8 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
   const [jdText, setJdText] = useState("");
   const [lcCount, setLcCount] = useState(15);
   const [iqCount, setIqCount] = useState(12);
+  const [lcCountText, setLcCountText] = useState("15");
+  const [iqCountText, setIqCountText] = useState("12");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JDAnalysisResult | null>(null);
@@ -159,23 +161,31 @@ export function JDAnalyzerPanel({ onRequestJDAnalysis, onPlanSaved }: JDAnalyzer
         <label className="jd-count-label">
           LC problems
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             className="jd-count-input"
-            min={5}
-            max={50}
-            value={lcCount}
-            onChange={(e) => setLcCount(Math.min(50, Math.max(5, Number(e.target.value))))}
+            value={lcCountText}
+            onChange={(e) => setLcCountText(e.target.value)}
+            onBlur={() => {
+              const n = Math.min(50, Math.max(5, parseInt(lcCountText, 10) || 15));
+              setLcCount(n);
+              setLcCountText(String(n));
+            }}
           />
         </label>
         <label className="jd-count-label">
           Interview Qs
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             className="jd-count-input"
-            min={5}
-            max={30}
-            value={iqCount}
-            onChange={(e) => setIqCount(Math.min(30, Math.max(5, Number(e.target.value))))}
+            value={iqCountText}
+            onChange={(e) => setIqCountText(e.target.value)}
+            onBlur={() => {
+              const n = Math.min(30, Math.max(5, parseInt(iqCountText, 10) || 12));
+              setIqCount(n);
+              setIqCountText(String(n));
+            }}
           />
         </label>
       </div>
