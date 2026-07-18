@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "re
 import type {
   GuidanceChunk,
   HintLevel,
+  InterviewerProfile,
   InterviewLevel,
   InterviewPhase,
   JDAnalysisResult,
@@ -158,6 +159,9 @@ interface PanelAppProps {
     interviewPhase: InterviewPhase;
     provider?: string;
     modelId?: string;
+    jd?: string;
+    interviewer?: InterviewerProfile;
+    lcProblems?: string[];
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -165,6 +169,7 @@ interface PanelAppProps {
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
   onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string, lcQuestionCount?: number, interviewQuestionCount?: number) => Promise<JDAnalysisResult>;
+  onRequestInterviewerParse: (linkedInText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<InterviewerProfile>;
 }
 
 export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp(
@@ -179,6 +184,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onRequestAwsProfiles,
     onCancelHint,
     onRequestJDAnalysis,
+    onRequestInterviewerParse,
   },
   ref
 ) {
@@ -374,6 +380,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   };
 
   const submitInterviewTurn = async (userQuestion: string | undefined, phase: InterviewPhase) => {
+    const jdActive = !!state.jdText.trim() && !!state.interviewerProfile;
     const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestInterviewTurn({
       userQuestion,
       interviewLevel: state.interviewLevel,
@@ -381,6 +388,9 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       interviewPhase: phase,
       provider: state.selectedProviderId || undefined,
       modelId: state.selectedModelId || undefined,
+      jd: jdActive ? state.jdText.trim() : undefined,
+      interviewer: jdActive ? state.interviewerProfile! : undefined,
+      lcProblems: jdActive && state.lcProblems.length > 0 ? state.lcProblems : undefined,
     });
     dispatch({
       type: "interviewTurnRequested",
@@ -389,6 +399,22 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       codeCaptureIncomplete,
       codeCaptureFailureReason,
     });
+  };
+
+  const handleParseInterviewer = async () => {
+    const text = state.linkedInText.trim();
+    if (!text) return;
+    dispatch({ type: "interviewerParseStarted" });
+    try {
+      const profile = await onRequestInterviewerParse(
+        text,
+        state.selectedProviderId || undefined,
+        state.selectedModelId || undefined
+      );
+      dispatch({ type: "interviewerParsed", profile });
+    } catch (err: any) {
+      dispatch({ type: "interviewerParseErrored", message: err?.message ?? "Parse failed" });
+    }
   };
 
   const handleStartInterview = () => submitInterviewTurn(undefined, "opening");
@@ -675,6 +701,144 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                     ))}
                   </select>
                 </label>
+
+                {state.interviewThread.length === 0 && (
+                  <div className="jd-setup-section">
+                    <button
+                      type="button"
+                      className="jd-setup-toggle"
+                      onClick={() => dispatch({ type: "jdInterviewSetupToggled" })}
+                    >
+                      <span>{state.jdInterviewSetupOpen ? "▾" : "▸"}</span>
+                      {state.interviewerProfile
+                        ? `Interviewer: ${state.interviewerProfile.name}`
+                        : "JD Interview Setup"}
+                      {(state.jdText.trim() || state.interviewerProfile) && (
+                        <span className="jd-setup-badge">●</span>
+                      )}
+                    </button>
+
+                    {state.jdInterviewSetupOpen && (
+                      <div className="jd-setup-body">
+                        <label className="jd-setup-label">
+                          Job Description
+                          <textarea
+                            className="jd-setup-textarea"
+                            placeholder="Paste the job description here..."
+                            value={state.jdText}
+                            onChange={(e) => dispatch({ type: "jdTextChanged", text: e.target.value })}
+                            rows={4}
+                          />
+                        </label>
+
+                        <label className="jd-setup-label">
+                          LC Problems to include (slugs, comma-separated)
+                          <input
+                            type="text"
+                            className="jd-setup-input"
+                            placeholder="e.g. two-sum, lru-cache"
+                            value={state.lcProblems.join(", ")}
+                            onChange={(e) => {
+                              const problems = e.target.value
+                                .split(",")
+                                .map((s) => s.trim())
+                                .filter(Boolean);
+                              dispatch({ type: "lcProblemsChanged", problems });
+                            }}
+                          />
+                        </label>
+
+                        {!state.interviewerProfile ? (
+                          <>
+                            <label className="jd-setup-label">
+                              Interviewer LinkedIn Profile
+                              <textarea
+                                className="jd-setup-textarea"
+                                placeholder="Paste LinkedIn experience / About section here..."
+                                value={state.linkedInText}
+                                onChange={(e) => dispatch({ type: "linkedInTextChanged", text: e.target.value })}
+                                rows={4}
+                              />
+                            </label>
+                            {state.interviewerParseError && (
+                              <div className="jd-setup-error">{state.interviewerParseError}</div>
+                            )}
+                            <button
+                              type="button"
+                              className="jd-setup-parse-btn"
+                              onClick={handleParseInterviewer}
+                              disabled={state.isParsingInterviewer || !state.linkedInText.trim()}
+                            >
+                              {state.isParsingInterviewer ? "Parsing..." : "Parse interviewer"}
+                            </button>
+                          </>
+                        ) : (
+                          <div className="interviewer-card">
+                            <div className="interviewer-card-header">
+                              <span className="interviewer-card-title">Interviewer</span>
+                              <button
+                                type="button"
+                                className="icon-button"
+                                onClick={() => dispatch({ type: "interviewerProfileCleared" })}
+                                title="Clear interviewer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <label className="jd-setup-label">
+                              Name
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.name}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { name: e.target.value } })}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Title
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.title}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { title: e.target.value } })}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Company
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.company}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { company: e.target.value } })}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Technical areas
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.technicalAreas.join(", ")}
+                                onChange={(e) => {
+                                  const areas = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+                                  dispatch({ type: "interviewerProfileEdited", patch: { technicalAreas: areas } });
+                                }}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Inferred style
+                              <textarea
+                                className="jd-setup-textarea"
+                                value={state.interviewerProfile.inferredStyle}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { inferredStyle: e.target.value } })}
+                                rows={3}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

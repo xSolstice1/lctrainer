@@ -1,4 +1,4 @@
-import type { BackgroundToContentMessage, ConversationTurn, JDAnalysisResult, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
+import type { BackgroundToContentMessage, ConversationTurn, InterviewerProfile, JDAnalysisResult, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 import { connectToBackground } from "../lib/messaging.js";
 import { getSiteAdapter, type SiteAdapter } from "./sites/index.js";
 import { mountPanel } from "../panel/mount.js";
@@ -21,6 +21,7 @@ async function main() {
   let port: chrome.runtime.Port;
   let activeRequestId: string | null = null;
   const pendingJDRequests = new Map<string, { resolve: (r: JDAnalysisResult) => void; reject: (e: Error) => void }>();
+  const pendingInterviewerParseRequests = new Map<string, { resolve: (r: InterviewerProfile) => void; reject: (e: Error) => void }>();
   let history: ConversationTurn[] = [];
   let pendingAssistantText = "";
   let lastHintCode: string | null = null;
@@ -86,7 +87,7 @@ async function main() {
       return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
     },
 
-    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId }) => {
+    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId, jd, interviewer, lcProblems }) => {
       let codeCaptureFailureReason: string | undefined;
       const code = await site.getCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
@@ -118,6 +119,9 @@ async function main() {
             interviewLevel,
             pressureLevel,
             interviewPhase,
+            jd,
+            interviewer,
+            lcProblems,
             provider,
             modelId,
           },
@@ -158,6 +162,14 @@ async function main() {
         const requestId = crypto.randomUUID();
         pendingJDRequests.set(requestId, { resolve, reject });
         port.postMessage({ type: "requestJDAnalysis", requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount });
+      });
+    },
+
+    onRequestInterviewerParse: (linkedInText, provider, modelId, awsProfile) => {
+      return new Promise<InterviewerProfile>((resolve, reject) => {
+        const requestId = crypto.randomUUID();
+        pendingInterviewerParseRequests.set(requestId, { resolve, reject });
+        port.postMessage({ type: "requestInterviewerParse", requestId, linkedInText, provider, modelId, awsProfile });
       });
     },
   });
@@ -227,6 +239,18 @@ async function main() {
         pendingJDRequests.delete(message.requestId);
         pending.reject(new Error(message.message));
       }
+    } else if (message.type === "interviewerParseResult") {
+      const pending = pendingInterviewerParseRequests.get(message.requestId);
+      if (pending) {
+        pendingInterviewerParseRequests.delete(message.requestId);
+        pending.resolve(message.profile);
+      }
+    } else if (message.type === "interviewerParseError") {
+      const pending = pendingInterviewerParseRequests.get(message.requestId);
+      if (pending) {
+        pendingInterviewerParseRequests.delete(message.requestId);
+        pending.reject(new Error(message.message));
+      }
     }
     // "pong" needs no handling — receiving it just confirms the port is alive.
   }
@@ -248,6 +272,10 @@ async function main() {
         pending.reject(new Error("Connection lost — please try again."));
       }
       pendingJDRequests.clear();
+      for (const pending of pendingInterviewerParseRequests.values()) {
+        pending.reject(new Error("Connection lost — please try again."));
+      }
+      pendingInterviewerParseRequests.clear();
       connect();
     });
   }

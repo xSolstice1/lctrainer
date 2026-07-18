@@ -4,6 +4,7 @@ import type { AppConfig } from "../config/env.js";
 import { defaultModelIdFor, type ProviderRegistry } from "../providers/index.js";
 import { buildSystemPrompt } from "../prompts/socraticSystemPrompt.js";
 import { buildInterviewSystemPrompt } from "../prompts/interviewSystemPrompt.js";
+import { buildJDInterviewSystemPrompt } from "../prompts/jdInterviewSystemPrompt.js";
 import { estimateCostUsd } from "../pricing.js";
 
 const guidanceRequestSchema = z.object({
@@ -42,6 +43,17 @@ const guidanceRequestSchema = z.object({
   interviewLevel: z.enum(["junior", "mid", "senior", "staff", "principal"]).optional(),
   pressureLevel: z.enum(["supportive", "standard", "stress"]).optional(),
   interviewPhase: z.enum(["opening", "grilling", "grading"]).optional(),
+  jd: z.string().max(20000).optional(),
+  interviewer: z.object({
+    name: z.string(),
+    title: z.string(),
+    company: z.string(),
+    yearsOfExperience: z.number(),
+    technicalAreas: z.array(z.string()),
+    inferredStyle: z.string(),
+    rawLinkedInText: z.string(),
+  }).optional(),
+  lcProblems: z.array(z.string()).max(5).optional(),
 });
 
 export function createGuidanceRouter(config: AppConfig, providers: ProviderRegistry): Router {
@@ -67,7 +79,14 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
     }
 
     const systemPrompt =
-      request.mode === "interview"
+      request.mode === "interview" && request.jd && request.interviewer
+        ? buildJDInterviewSystemPrompt(
+            request.jd,
+            request.interviewer,
+            request.lcProblems ?? [],
+            request.interviewPhase ?? "opening"
+          )
+        : request.mode === "interview"
         ? buildInterviewSystemPrompt(
             request.problem,
             request.interviewPhase ?? "opening",

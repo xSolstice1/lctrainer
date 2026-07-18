@@ -1,5 +1,6 @@
 import type { ProblemMetadata } from "./problem.js";
 import type { CodeSnapshot } from "./codeSnapshot.js";
+import type { InterviewerProfile } from "./interviewer.js";
 
 export type LLMProviderId = "local" | "bedrock" | "openrouter";
 
@@ -68,6 +69,12 @@ export interface GuidanceRequest {
   interviewLevel?: InterviewLevel;
   pressureLevel?: PressureLevel;
   interviewPhase?: InterviewPhase;
+  /** JD-based interview: the job description text. When present alongside mode="interview", activates the JD interview prompt. */
+  jd?: string;
+  /** Parsed + user-confirmed interviewer persona (from LinkedIn). */
+  interviewer?: InterviewerProfile;
+  /** LeetCode problem slugs to weave into the interview (e.g. ["two-sum", "lru-cache"]). */
+  lcProblems?: string[];
 }
 
 export interface TokenUsage {

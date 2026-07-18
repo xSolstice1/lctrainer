@@ -104,6 +104,31 @@ chrome.runtime.onConnect.addListener((port) => {
       return;
     }
 
+    if (message.type === "requestInterviewerParse") {
+      const { requestId, linkedInText, provider, modelId, awsProfile } = message;
+      try {
+        const body: Record<string, string> = { linkedInText };
+        if (provider) body.provider = provider;
+        if (modelId) body.modelId = modelId;
+        if (awsProfile) body.awsProfile = awsProfile;
+        const res = await fetch(`${serverUrl}/api/interviewer/parse`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string };
+          port.postMessage({ type: "interviewerParseError", requestId, message: err.error ?? `Server error ${res.status}` });
+        } else {
+          const profile = await res.json();
+          port.postMessage({ type: "interviewerParseResult", requestId, profile });
+        }
+      } catch (err: any) {
+        port.postMessage({ type: "interviewerParseError", requestId, message: err?.message ?? "Interviewer parse failed" });
+      }
+      return;
+    }
+
     if (message.type === "requestJDAnalysis") {
       const { requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount } = message;
       // Keep the service worker alive during the long-running fetch — Chrome
