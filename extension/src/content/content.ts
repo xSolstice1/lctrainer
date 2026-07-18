@@ -100,7 +100,16 @@ async function main() {
         return { code: "", language: "unknown", possiblyIncomplete: true };
       });
 
-      if (currentProblem) {
+      const effectiveProblem = currentProblem ?? (jd && interviewer ? {
+        slug: "jd-interview",
+        title: "JD Interview",
+        difficulty: "Medium" as const,
+        tags: [],
+        statementHtml: "",
+        url: "",
+      } : null);
+
+      if (effectiveProblem) {
         const requestId = crypto.randomUUID();
         activeRequestId = requestId;
         activeRequestMode = "interview";
@@ -110,7 +119,7 @@ async function main() {
           request: {
             sessionId,
             requestId,
-            problem: currentProblem,
+            problem: effectiveProblem,
             code: {
               language: code.language,
               code: code.code,

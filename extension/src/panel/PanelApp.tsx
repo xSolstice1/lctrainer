@@ -655,7 +655,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </div>
             )}
 
-            <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+            <div className="problem-title">
+              {state.problem
+                ? state.problem.title
+                : state.interviewerProfile
+                ? `Interview with ${state.interviewerProfile.name}`
+                : "Loading problem..."}
+            </div>
 
             {patternTags.length > 0 && (
               <div className="pattern-tags">
