@@ -104,6 +104,40 @@ chrome.runtime.onConnect.addListener((port) => {
       return;
     }
 
+    if (message.type === "requestJDAnalysis") {
+      const { requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount } = message;
+      // Keep the service worker alive during the long-running fetch — Chrome
+      // terminates MV3 workers after ~30s of inactivity. Scheduling a repeating
+      // alarm (minimum 1 minute) prevents that while the request is in flight.
+      const alarmName = `jd-keepalive-${requestId}`;
+      chrome.alarms.create(alarmName, { periodInMinutes: 1 });
+      try {
+        const body: Record<string, string | number> = { jdText };
+        if (provider) body.provider = provider;
+        if (modelId) body.modelId = modelId;
+        if (awsProfile) body.awsProfile = awsProfile;
+        if (lcQuestionCount) body.lcQuestionCount = lcQuestionCount;
+        if (interviewQuestionCount) body.interviewQuestionCount = interviewQuestionCount;
+        const res = await fetch(`${serverUrl}/api/jd/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string };
+          port.postMessage({ type: "jdAnalysisError", requestId, message: err.error ?? `Server error ${res.status}` });
+        } else {
+          const result = await res.json();
+          port.postMessage({ type: "jdAnalysisResult", requestId, result });
+        }
+      } catch (err: any) {
+        port.postMessage({ type: "jdAnalysisError", requestId, message: err?.message ?? "JD analysis failed" });
+      } finally {
+        chrome.alarms.clear(alarmName);
+      }
+      return;
+    }
+
     if (message.type !== "requestGuidance") return;
 
     const { requestId } = message.request;

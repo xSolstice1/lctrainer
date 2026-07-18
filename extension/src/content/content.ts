@@ -1,4 +1,4 @@
-import type { BackgroundToContentMessage, ConversationTurn, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
+import type { BackgroundToContentMessage, ConversationTurn, JDAnalysisResult, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 import { connectToBackground } from "../lib/messaging.js";
 import { getSiteAdapter, type SiteAdapter } from "./sites/index.js";
 import { mountPanel } from "../panel/mount.js";
@@ -20,6 +20,7 @@ async function main() {
   let currentProblem: ProblemMetadata | null = null;
   let port: chrome.runtime.Port;
   let activeRequestId: string | null = null;
+  const pendingJDRequests = new Map<string, { resolve: (r: JDAnalysisResult) => void; reject: (e: Error) => void }>();
   let history: ConversationTurn[] = [];
   let pendingAssistantText = "";
   let lastHintCode: string | null = null;
@@ -151,6 +152,14 @@ async function main() {
         port.postMessage({ type: "cancelGuidance", requestId: activeRequestId });
       }
     },
+
+    onRequestJDAnalysis: (jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount) => {
+      return new Promise<JDAnalysisResult>((resolve, reject) => {
+        const requestId = crypto.randomUUID();
+        pendingJDRequests.set(requestId, { resolve, reject });
+        port.postMessage({ type: "requestJDAnalysis", requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount });
+      });
+    },
   });
 
   function handleMessage(message: BackgroundToContentMessage) {
@@ -206,6 +215,18 @@ async function main() {
       panel.onServerInfoFailed(message.message);
     } else if (message.type === "awsProfiles") {
       panel.onAwsProfilesLoaded(message.profiles, message.currentProfile);
+    } else if (message.type === "jdAnalysisResult") {
+      const pending = pendingJDRequests.get(message.requestId);
+      if (pending) {
+        pendingJDRequests.delete(message.requestId);
+        pending.resolve(message.result);
+      }
+    } else if (message.type === "jdAnalysisError") {
+      const pending = pendingJDRequests.get(message.requestId);
+      if (pending) {
+        pendingJDRequests.delete(message.requestId);
+        pending.reject(new Error(message.message));
+      }
     }
     // "pong" needs no handling — receiving it just confirms the port is alive.
   }
@@ -222,6 +243,11 @@ async function main() {
         panel.onConnectionError("Lost connection to the extension background worker. Please try again.");
         activeRequestId = null;
       }
+      // Reject any pending JD analysis promises so the panel doesn't hang.
+      for (const pending of pendingJDRequests.values()) {
+        pending.reject(new Error("Connection lost — please try again."));
+      }
+      pendingJDRequests.clear();
       connect();
     });
   }

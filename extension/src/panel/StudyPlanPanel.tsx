@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { StudyPlan } from "@lctrainer/shared";
+import type { StudyPlan, StudyPlanInterviewQuestionCategory } from "@lctrainer/shared";
 import { getSolveHistory } from "../lib/solveHistory.js";
 import { isLearned } from "../lib/learnedGroups.js";
 import { addStudyPlan, refreshStudyPlan, removeStudyPlan, getStudyPlans } from "../lib/studyPlans.js";
@@ -18,6 +18,20 @@ const SHORTCUTS: StudyPlanShortcut[] = [
   { label: "DP 25", slug: "dynamic-programming" },
 ];
 
+const IQ_CATEGORY_LABEL: Record<StudyPlanInterviewQuestionCategory, string> = {
+  behavioral: "Behavioral",
+  "system-design": "System Design",
+  technical: "Technical",
+  domain: "Domain",
+};
+
+const IQ_CATEGORY_CLASS: Record<StudyPlanInterviewQuestionCategory, string> = {
+  behavioral: "jd-cat-behavioral",
+  "system-design": "jd-cat-system-design",
+  technical: "jd-cat-technical",
+  domain: "jd-cat-domain",
+};
+
 interface StudyPlanPanelProps {
   currentSlug: string | undefined;
   refreshKey: number;
@@ -31,6 +45,7 @@ export function StudyPlanPanel({ currentSlug, refreshKey, onPlansChanged }: Stud
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean> | null>(null);
+  const [expandedIqKey, setExpandedIqKey] = useState<string | null>(null);
 
   useEffect(() => {
     getStudyPlans().then(setPlans);
@@ -140,6 +155,7 @@ export function StudyPlanPanel({ currentSlug, refreshKey, onPlansChanged }: Stud
           {addedPlans.map((plan) => {
             const questions = plan.groups.flatMap((g) => g.questions);
             const solvedCount = questions.filter((q) => solvedSlugs.has(q.slug)).length;
+            const iqCount = plan.interviewQuestions?.length ?? 0;
             const isOpen = expanded[plan.slug] ?? addedPlans.length <= 2;
             return (
               <details
@@ -151,7 +167,7 @@ export function StudyPlanPanel({ currentSlug, refreshKey, onPlansChanged }: Stud
                 <summary className="study-plan-summary">
                   <span className="study-plan-name">{plan.name}</span>
                   <span className="learned-meta">
-                    {solvedCount}/{questions.length} solved
+                    {solvedCount}/{questions.length} solved{iqCount > 0 ? ` · ${iqCount} IQ` : ""}
                   </span>
                 </summary>
                 <div className="study-plan-actions">
@@ -189,6 +205,43 @@ export function StudyPlanPanel({ currentSlug, refreshKey, onPlansChanged }: Stud
                     ))}
                   </div>
                 ))}
+                {plan.interviewQuestions && plan.interviewQuestions.length > 0 && (
+                  <div className="study-plan-group">
+                    <div className="study-plan-group-name">Interview Questions</div>
+                    {plan.interviewQuestions.map((iq, idx) => {
+                      const key = `${plan.slug}-${idx}`;
+                      const isOpen = expandedIqKey === key;
+                      return (
+                        <div key={key} className="sp-iq-row">
+                          <button
+                            type="button"
+                            className="sp-iq-trigger"
+                            onClick={() => setExpandedIqKey(isOpen ? null : key)}
+                          >
+                            <span className={`jd-iq-category ${IQ_CATEGORY_CLASS[iq.category] ?? ""}`}>
+                              {IQ_CATEGORY_LABEL[iq.category] ?? iq.category}
+                            </span>
+                            <span className="sp-iq-question">{iq.question}</span>
+                            <span className="sp-iq-chevron">{isOpen ? "▲" : "▼"}</span>
+                          </button>
+                          {isOpen && (
+                            <div className="sp-iq-expanded">
+                              {iq.rationale && (
+                                <p className="jd-iq-rationale"><strong>Why asked:</strong> {iq.rationale}</p>
+                              )}
+                              {iq.sampleAnswer && (
+                                <div className="jd-iq-answer">
+                                  <p className="jd-iq-answer-label">Sample answer</p>
+                                  <p className="jd-iq-answer-text">{iq.sampleAnswer}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </details>
             );
           })}

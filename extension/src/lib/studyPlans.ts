@@ -30,6 +30,12 @@ export async function addStudyPlan(planSlug: string): Promise<StudyPlan | null> 
   return saved;
 }
 
+export async function saveCustomStudyPlan(plan: StudyPlan): Promise<void> {
+  await updatePlans((plans) => {
+    plans[plan.slug] = plan;
+  });
+}
+
 export async function removeStudyPlan(slug: string): Promise<void> {
   await updatePlans((plans) => {
     delete plans[slug];
