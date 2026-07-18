@@ -24,7 +24,7 @@ import { JDAnalyzerPanel } from "./JDAnalyzerPanel.js";
 import { ThreadPanel } from "./ThreadPanel.js";
 import { InterviewPanel } from "./InterviewPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
-import { STORAGE_KEY_AWS_PROFILE } from "../lib/constants.js";
+import { STORAGE_KEY_AWS_PROFILE, STORAGE_KEY_JD_INTERVIEW_HISTORY, STORAGE_KEY_JD_INTERVIEW_SESSION } from "../lib/constants.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 import { useStudyPlans } from "../lib/useStudyPlans.js";
 import { findPlanContext } from "../lib/studyPlans.js";
@@ -284,6 +284,38 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     if (!slug || state.isStreaming || !restoredSlugsRef.current.has(slug)) return;
     saveThread(slug, state.thread, Date.now());
   }, [slug, state.thread, state.isStreaming]);
+
+  // Restore JD interview session on mount (survives tab switches / service worker restarts).
+  useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEY_JD_INTERVIEW_SESSION).then((stored) => {
+      const session = stored[STORAGE_KEY_JD_INTERVIEW_SESSION];
+      if (session?.interviewerProfile && session?.interviewThread?.length > 0) {
+        dispatch({ type: "jdInterviewSessionRestored", session });
+      }
+    });
+  }, []);
+
+  // Persist JD interview session whenever it changes.
+  useEffect(() => {
+    if (state.interviewerProfile && state.interviewThread.length > 0) {
+      chrome.storage.local.set({
+        [STORAGE_KEY_JD_INTERVIEW_SESSION]: {
+          interviewThread: state.interviewThread,
+          interviewPhase: state.interviewPhase,
+          interviewerProfile: state.interviewerProfile,
+          jdText: state.jdText,
+          linkedInText: state.linkedInText,
+        },
+      });
+    }
+  }, [state.interviewThread, state.interviewPhase, state.interviewerProfile, state.jdText]);
+
+  // Clear persisted session when interviewer is cleared.
+  useEffect(() => {
+    if (!state.interviewerProfile) {
+      chrome.storage.local.remove([STORAGE_KEY_JD_INTERVIEW_SESSION, STORAGE_KEY_JD_INTERVIEW_HISTORY]);
+    }
+  }, [state.interviewerProfile]);
 
   useEffect(() => {
     if (outputRef.current) {

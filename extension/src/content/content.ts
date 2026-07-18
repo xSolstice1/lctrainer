@@ -2,7 +2,7 @@ import type { BackgroundToContentMessage, ConversationTurn, InterviewerProfile, 
 import { connectToBackground } from "../lib/messaging.js";
 import { getSiteAdapter, type SiteAdapter } from "./sites/index.js";
 import { mountPanel } from "../panel/mount.js";
-import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
+import { STORAGE_KEY_JD_INTERVIEW_HISTORY, STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
 import { recordAccepted, recordHintUsed, recordProblemSeen } from "../lib/solveHistory.js";
 
 const PING_INTERVAL_MS = 20_000;
@@ -37,7 +37,11 @@ async function main() {
   // says which history/pending-buffer the in-flight response belongs to.
   let activeRequestMode: "learn" | "interview" = "learn";
 
-  const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
+  const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID, STORAGE_KEY_JD_INTERVIEW_HISTORY]);
+  if (stored[STORAGE_KEY_JD_INTERVIEW_HISTORY]?.length > 0) {
+    interviewHistory = stored[STORAGE_KEY_JD_INTERVIEW_HISTORY];
+    jdInterviewActive = true;
+  }
 
   const panel = mountPanel({
     initialProviderId: stored[STORAGE_KEY_PROVIDER] ?? "",
@@ -199,6 +203,9 @@ async function main() {
         if (isInterview) {
           if (pendingInterviewText) {
             interviewHistory = [...interviewHistory, { role: "assistant", content: pendingInterviewText }];
+            if (jdInterviewActive) {
+              chrome.storage.local.set({ [STORAGE_KEY_JD_INTERVIEW_HISTORY]: interviewHistory });
+            }
           }
         } else if (pendingAssistantText) {
           const turn: ConversationTurn = { role: "assistant", content: pendingAssistantText };

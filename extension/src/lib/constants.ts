@@ -10,4 +10,6 @@ export const STORAGE_KEY_SIDEBAR_TAB = "lctrainer_sidebar_tab";
 export const STORAGE_KEY_STUDY_PLAN_EXPANDED = "lctrainer_study_plan_expanded";
 export const STORAGE_KEY_THREAD_CACHE = "lctrainer_thread_cache";
 export const STORAGE_KEY_AWS_PROFILE = "lctrainer_aws_profile";
+export const STORAGE_KEY_JD_INTERVIEW_SESSION = "lctrainer_jd_interview_session";
+export const STORAGE_KEY_JD_INTERVIEW_HISTORY = "lctrainer_jd_interview_history";
 export const CODE_POLL_INTERVAL_MS = 2500;

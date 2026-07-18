@@ -104,6 +104,7 @@ type PanelAction =
   | { type: "interviewerParseErrored"; message: string }
   | { type: "interviewerProfileEdited"; patch: Partial<InterviewerProfile> }
   | { type: "interviewerProfileCleared" }
+  | { type: "jdInterviewSessionRestored"; session: { interviewThread: PanelState["interviewThread"]; interviewPhase: PanelState["interviewPhase"]; interviewerProfile: NonNullable<PanelState["interviewerProfile"]>; jdText: string; linkedInText: string } }
 ;
 
 const initialState: PanelState = {
@@ -311,7 +312,17 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       if (!state.interviewerProfile) return state;
       return { ...state, interviewerProfile: { ...state.interviewerProfile, ...action.patch } };
     case "interviewerProfileCleared":
-      return { ...state, interviewerProfile: null, linkedInText: "" };
+      return { ...state, interviewerProfile: null, linkedInText: "", interviewThread: [], interviewPhase: "opening", interviewMode: false };
+    case "jdInterviewSessionRestored":
+      return {
+        ...state,
+        interviewMode: true,
+        interviewThread: action.session.interviewThread,
+        interviewPhase: action.session.interviewPhase,
+        interviewerProfile: action.session.interviewerProfile,
+        jdText: action.session.jdText,
+        linkedInText: action.session.linkedInText,
+      };
     default:
       return state;
   }
