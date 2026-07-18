@@ -303,6 +303,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  max-height: 60%;
 }
 
 /* The only scrolling region — hint/interview history grows here while the
