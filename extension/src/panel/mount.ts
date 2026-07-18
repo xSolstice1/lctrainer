@@ -53,7 +53,6 @@ interface MountPanelOptions {
     modelId?: string;
     jd?: string;
     interviewer?: InterviewerProfile;
-    lcProblems?: string[];
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;

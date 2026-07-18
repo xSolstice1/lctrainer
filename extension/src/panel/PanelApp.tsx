@@ -161,7 +161,6 @@ interface PanelAppProps {
     modelId?: string;
     jd?: string;
     interviewer?: InterviewerProfile;
-    lcProblems?: string[];
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -390,7 +389,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       modelId: state.selectedModelId || undefined,
       jd: jdActive ? state.jdText.trim() : undefined,
       interviewer: jdActive ? state.interviewerProfile! : undefined,
-      lcProblems: jdActive && state.lcProblems.length > 0 ? state.lcProblems : undefined,
     });
     dispatch({
       type: "interviewTurnRequested",
@@ -728,23 +726,6 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                             value={state.jdText}
                             onChange={(e) => dispatch({ type: "jdTextChanged", text: e.target.value })}
                             rows={4}
-                          />
-                        </label>
-
-                        <label className="jd-setup-label">
-                          LC Problems to include (slugs, comma-separated)
-                          <input
-                            type="text"
-                            className="jd-setup-input"
-                            placeholder="e.g. two-sum, lru-cache"
-                            value={state.lcProblems.join(", ")}
-                            onChange={(e) => {
-                              const problems = e.target.value
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter(Boolean);
-                              dispatch({ type: "lcProblemsChanged", problems });
-                            }}
                           />
                         </label>
 

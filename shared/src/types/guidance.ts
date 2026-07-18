@@ -73,8 +73,6 @@ export interface GuidanceRequest {
   jd?: string;
   /** Parsed + user-confirmed interviewer persona (from LinkedIn). */
   interviewer?: InterviewerProfile;
-  /** LeetCode problem slugs to weave into the interview (e.g. ["two-sum", "lru-cache"]). */
-  lcProblems?: string[];
 }
 
 export interface TokenUsage {

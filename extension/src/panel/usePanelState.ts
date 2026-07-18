@@ -63,7 +63,6 @@ export interface PanelState {
   interviewerProfile: InterviewerProfile | null;
   isParsingInterviewer: boolean;
   interviewerParseError: string | null;
-  lcProblems: string[];
 }
 
 type PanelAction =
@@ -105,7 +104,7 @@ type PanelAction =
   | { type: "interviewerParseErrored"; message: string }
   | { type: "interviewerProfileEdited"; patch: Partial<InterviewerProfile> }
   | { type: "interviewerProfileCleared" }
-  | { type: "lcProblemsChanged"; problems: string[] };
+;
 
 const initialState: PanelState = {
   problem: null,
@@ -134,7 +133,6 @@ const initialState: PanelState = {
   interviewerProfile: null,
   isParsingInterviewer: false,
   interviewerParseError: null,
-  lcProblems: [],
 };
 
 function updateLastEntry<T>(thread: T[], patch: Partial<T>): T[] {
@@ -145,20 +143,24 @@ function updateLastEntry<T>(thread: T[], patch: Partial<T>): T[] {
 
 function reducer(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
-    case "problemLoaded":
-      // A different problem loaded — the thread belongs to the old one.
+    case "problemLoaded": {
+      // A different problem loaded — the learn thread belongs to the old one.
       if (action.problem?.slug !== state.problem?.slug) {
+        // JD interview is persona-driven and spans the whole session — don't
+        // reset it when the user navigates to a different problem/tab.
+        const jdInterviewActive = !!state.interviewerProfile && state.interviewThread.length > 0;
         return {
           ...state,
           problem: action.problem,
           thread: [],
           showAcceptedReviewOffer: false,
           submissionError: null,
-          interviewThread: [],
-          interviewPhase: "opening",
+          interviewThread: jdInterviewActive ? state.interviewThread : [],
+          interviewPhase: jdInterviewActive ? state.interviewPhase : "opening",
         };
       }
       return { ...state, problem: action.problem };
+    }
     case "hintRequested": {
       const entry: ThreadEntry = {
         question: action.questionOverride ?? state.questionText.trim(),
@@ -309,8 +311,6 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       return { ...state, interviewerProfile: { ...state.interviewerProfile, ...action.patch } };
     case "interviewerProfileCleared":
       return { ...state, interviewerProfile: null, linkedInText: "" };
-    case "lcProblemsChanged":
-      return { ...state, lcProblems: action.problems };
     default:
       return state;
   }

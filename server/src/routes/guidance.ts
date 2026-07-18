@@ -53,7 +53,6 @@ const guidanceRequestSchema = z.object({
     inferredStyle: z.string(),
     rawLinkedInText: z.string(),
   }).optional(),
-  lcProblems: z.array(z.string()).max(5).optional(),
 });
 
 export function createGuidanceRouter(config: AppConfig, providers: ProviderRegistry): Router {
@@ -83,7 +82,6 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
         ? buildJDInterviewSystemPrompt(
             request.jd,
             request.interviewer,
-            request.lcProblems ?? [],
             request.interviewPhase ?? "opening"
           )
         : request.mode === "interview"

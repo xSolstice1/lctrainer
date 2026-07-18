@@ -87,7 +87,7 @@ async function main() {
       return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
     },
 
-    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId, jd, interviewer, lcProblems }) => {
+    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId, jd, interviewer }) => {
       let codeCaptureFailureReason: string | undefined;
       const code = await site.getCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
@@ -121,7 +121,6 @@ async function main() {
             interviewPhase,
             jd,
             interviewer,
-            lcProblems,
             provider,
             modelId,
           },
