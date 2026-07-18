@@ -303,8 +303,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
-  max-height: 60%;
 }
 
 /* The only scrolling region — hint/interview history grows here while the
@@ -2112,6 +2110,9 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
 }
 
 .jd-setup-toggle {
@@ -2147,6 +2148,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .jd-setup-label {
