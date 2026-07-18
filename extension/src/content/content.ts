@@ -30,6 +30,9 @@ async function main() {
   // learn-mode thread above — it's a different persona/context entirely.
   let interviewHistory: ConversationTurn[] = [];
   let pendingInterviewText = "";
+  // True once a JD-based interview has started — prevents interviewHistory from
+  // being cleared when the user navigates to a different problem/tab.
+  let jdInterviewActive = false;
   // Only one request is ever in flight (shared activeRequestId below) — this
   // says which history/pending-buffer the in-flight response belongs to.
   let activeRequestMode: "learn" | "interview" = "learn";
@@ -88,6 +91,7 @@ async function main() {
     },
 
     onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId, jd, interviewer }) => {
+      if (jd && interviewer) jdInterviewActive = true;
       let codeCaptureFailureReason: string | undefined;
       const code = await site.getCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
@@ -298,7 +302,7 @@ async function main() {
     if (problem?.slug !== currentProblem?.slug) {
       history = [];
       lastHintCode = null;
-      interviewHistory = [];
+      if (!jdInterviewActive) interviewHistory = [];
     }
     currentProblem = problem;
     // Write solve-history before notifying the panel — the Solved/Attempted

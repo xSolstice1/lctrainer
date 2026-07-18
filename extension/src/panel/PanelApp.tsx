@@ -900,7 +900,11 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             {state.interviewMode ? (
               state.interviewThread.length === 0 ? (
                 <div className="panel-controls-row">
-                  <button className="primary-btn" onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
+                  <button
+                    className="primary-btn"
+                    onClick={handleStartInterview}
+                    disabled={state.isInterviewStreaming || (!state.problem && !(state.jdText.trim() && state.interviewerProfile))}
+                  >
                     {state.isInterviewStreaming ? "Starting..." : "Start interview"}
                   </button>
                 </div>
@@ -915,7 +919,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        if (!state.isInterviewStreaming && state.problem) handleSendInterviewMessage();
+                        if (!state.isInterviewStreaming && (state.problem || (state.jdText.trim() && state.interviewerProfile))) handleSendInterviewMessage();
                       }
                     }}
                   />
@@ -926,7 +930,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                           type="button"
                           className="composer-action-btn"
                           onClick={handleDoneCoding}
-                          disabled={state.isInterviewStreaming || !state.problem}
+                          disabled={state.isInterviewStreaming || (!state.problem && !(state.jdText.trim() && state.interviewerProfile))}
                           title="Tell the interviewer you're done coding"
                         >
                           Done coding
@@ -936,7 +940,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                         type="button"
                         className="composer-action-btn composer-action-danger"
                         onClick={handleEndInterview}
-                        disabled={state.isInterviewStreaming || !state.problem}
+                        disabled={state.isInterviewStreaming || (!state.problem && !(state.jdText.trim() && state.interviewerProfile))}
                         title="End and get final evaluation"
                       >
                         End &amp; grade
@@ -951,7 +955,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                         type="button"
                         className="composer-send-btn"
                         onClick={handleSendInterviewMessage}
-                        disabled={!state.problem}
+                        disabled={!state.problem && !(state.jdText.trim() && state.interviewerProfile)}
                         title="Send"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

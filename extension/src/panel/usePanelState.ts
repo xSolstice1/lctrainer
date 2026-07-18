@@ -155,6 +155,7 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
           thread: [],
           showAcceptedReviewOffer: false,
           submissionError: null,
+          interviewMode: jdInterviewActive ? true : state.interviewMode,
           interviewThread: jdInterviewActive ? state.interviewThread : [],
           interviewPhase: jdInterviewActive ? state.interviewPhase : "opening",
         };
