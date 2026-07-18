@@ -27,7 +27,7 @@ const guidanceRequestSchema = z.object({
   userQuestion: z.string().optional(),
   history: z
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
-    .max(20)
+    .max(60)
     .optional(),
   codeChangedSinceLastHint: z.boolean().optional(),
   hintLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
@@ -45,13 +45,13 @@ const guidanceRequestSchema = z.object({
   interviewPhase: z.enum(["opening", "grilling", "grading"]).optional(),
   jd: z.string().max(20000).optional(),
   interviewer: z.object({
-    name: z.string(),
-    title: z.string(),
-    company: z.string(),
-    yearsOfExperience: z.number(),
-    technicalAreas: z.array(z.string()),
-    inferredStyle: z.string(),
-    rawLinkedInText: z.string(),
+    name: z.string().default(""),
+    title: z.string().default(""),
+    company: z.string().default(""),
+    yearsOfExperience: z.coerce.number().default(0),
+    technicalAreas: z.array(z.string()).default([]),
+    inferredStyle: z.string().default(""),
+    rawLinkedInText: z.string().default(""),
   }).optional(),
 });
 

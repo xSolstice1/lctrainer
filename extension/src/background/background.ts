@@ -200,11 +200,16 @@ chrome.runtime.onConnect.addListener((port) => {
 
     if (!response.ok || !response.body) {
       if (activeRequestId === requestId) {
-        port.postMessage({
-          type: "connectionError",
-          requestId,
-          message: `Server error: ${response.status} ${response.statusText}`,
-        });
+        let detail = `Server error: ${response.status} ${response.statusText}`;
+        try {
+          const body = await response.clone().json();
+          if (body?.details?.fieldErrors) {
+            detail += " — " + JSON.stringify(body.details.fieldErrors);
+          } else if (body?.error) {
+            detail += " — " + body.error;
+          }
+        } catch { /* ignore */ }
+        port.postMessage({ type: "connectionError", requestId, message: detail });
       }
       return;
     }
