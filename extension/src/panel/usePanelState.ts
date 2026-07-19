@@ -105,6 +105,7 @@ type PanelAction =
   | { type: "interviewerProfileEdited"; patch: Partial<InterviewerProfile> }
   | { type: "interviewerProfileCleared" }
   | { type: "jdInterviewSessionRestored"; session: { interviewThread: PanelState["interviewThread"]; interviewPhase: PanelState["interviewPhase"]; interviewerProfile: NonNullable<PanelState["interviewerProfile"]>; jdText: string; linkedInText: string } }
+  | { type: "interviewReset" }
 ;
 
 const initialState: PanelState = {
@@ -323,6 +324,8 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
         jdText: action.session.jdText,
         linkedInText: action.session.linkedInText,
       };
+    case "interviewReset":
+      return { ...state, interviewThread: [], interviewPhase: "opening", isInterviewStreaming: false };
     default:
       return state;
   }

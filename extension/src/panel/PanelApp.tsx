@@ -464,6 +464,11 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     submitInterviewTurn("I'd like to end the interview here — please give me my final evaluation.", "grading");
   };
 
+  const handleNewInterview = () => {
+    chrome.storage.local.remove(STORAGE_KEY_JD_INTERVIEW_SESSION);
+    dispatch({ type: "interviewReset" });
+  };
+
   const effectiveProviderId = state.selectedProviderId || state.serverConfig?.defaultProvider || "";
   const FALLBACK_PROVIDERS: { id: LLMProviderId; label: string }[] = [
     { id: "bedrock", label: "AWS Bedrock" },
@@ -982,6 +987,15 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                         title="End and get final evaluation"
                       >
                         End &amp; grade
+                      </button>
+                      <button
+                        type="button"
+                        className="composer-action-btn"
+                        onClick={handleNewInterview}
+                        disabled={state.isInterviewStreaming}
+                        title="Clear current interview and start fresh"
+                      >
+                        New interview
                       </button>
                     </div>
                     {state.isInterviewStreaming ? (
