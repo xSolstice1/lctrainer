@@ -4,6 +4,7 @@ import type { AppConfig } from "../config/env.js";
 import { defaultModelIdFor, type ProviderRegistry } from "../providers/index.js";
 import { buildSystemPrompt } from "../prompts/socraticSystemPrompt.js";
 import { buildInterviewSystemPrompt } from "../prompts/interviewSystemPrompt.js";
+import { buildJDInterviewSystemPrompt } from "../prompts/jdInterviewSystemPrompt.js";
 import { estimateCostUsd } from "../pricing.js";
 
 const guidanceRequestSchema = z.object({
@@ -26,7 +27,7 @@ const guidanceRequestSchema = z.object({
   userQuestion: z.string().optional(),
   history: z
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
-    .max(20)
+    .max(60)
     .optional(),
   codeChangedSinceLastHint: z.boolean().optional(),
   hintLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
@@ -42,6 +43,16 @@ const guidanceRequestSchema = z.object({
   interviewLevel: z.enum(["junior", "mid", "senior", "staff", "principal"]).optional(),
   pressureLevel: z.enum(["supportive", "standard", "stress"]).optional(),
   interviewPhase: z.enum(["opening", "grilling", "grading"]).optional(),
+  jd: z.string().max(20000).optional(),
+  interviewer: z.object({
+    name: z.string().default(""),
+    title: z.string().default(""),
+    company: z.string().default(""),
+    yearsOfExperience: z.coerce.number().default(0),
+    technicalAreas: z.array(z.string()).default([]),
+    inferredStyle: z.string().default(""),
+    rawLinkedInText: z.string().default(""),
+  }).optional(),
 });
 
 export function createGuidanceRouter(config: AppConfig, providers: ProviderRegistry): Router {
@@ -67,7 +78,13 @@ export function createGuidanceRouter(config: AppConfig, providers: ProviderRegis
     }
 
     const systemPrompt =
-      request.mode === "interview"
+      request.mode === "interview" && request.jd && request.interviewer
+        ? buildJDInterviewSystemPrompt(
+            request.jd,
+            request.interviewer,
+            request.interviewPhase ?? "opening"
+          )
+        : request.mode === "interview"
         ? buildInterviewSystemPrompt(
             request.problem,
             request.interviewPhase ?? "opening",

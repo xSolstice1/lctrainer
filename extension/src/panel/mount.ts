@@ -3,6 +3,7 @@ import { createElement, createRef } from "react";
 import type {
   GuidanceChunk,
   HintLevel,
+  InterviewerProfile,
   InterviewLevel,
   InterviewPhase,
   JDAnalysisResult,
@@ -50,6 +51,8 @@ interface MountPanelOptions {
     interviewPhase: InterviewPhase;
     provider?: string;
     modelId?: string;
+    jd?: string;
+    interviewer?: InterviewerProfile;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -57,6 +60,7 @@ interface MountPanelOptions {
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
   onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string, lcQuestionCount?: number, interviewQuestionCount?: number) => Promise<JDAnalysisResult>;
+  onRequestInterviewerParse: (linkedInText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<InterviewerProfile>;
 }
 
 /**
@@ -101,6 +105,7 @@ export function mountPanel(options: MountPanelOptions): MountedPanel {
       onRequestAwsProfiles: options.onRequestAwsProfiles,
       onCancelHint: options.onCancelHint,
       onRequestJDAnalysis: options.onRequestJDAnalysis,
+      onRequestInterviewerParse: options.onRequestInterviewerParse,
     })
   );
 

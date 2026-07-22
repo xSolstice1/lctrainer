@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "re
 import type {
   GuidanceChunk,
   HintLevel,
+  InterviewerProfile,
   InterviewLevel,
   InterviewPhase,
   JDAnalysisResult,
@@ -23,7 +24,7 @@ import { JDAnalyzerPanel } from "./JDAnalyzerPanel.js";
 import { ThreadPanel } from "./ThreadPanel.js";
 import { InterviewPanel } from "./InterviewPanel.js";
 import { loadThread, saveThread } from "../lib/threadCache.js";
-import { STORAGE_KEY_AWS_PROFILE } from "../lib/constants.js";
+import { STORAGE_KEY_AWS_PROFILE, STORAGE_KEY_JD_INTERVIEW_HISTORY, STORAGE_KEY_JD_INTERVIEW_SESSION } from "../lib/constants.js";
 import { PATTERN_TAGS } from "../lib/patternTags.js";
 import { useStudyPlans } from "../lib/useStudyPlans.js";
 import { findPlanContext } from "../lib/studyPlans.js";
@@ -158,6 +159,8 @@ interface PanelAppProps {
     interviewPhase: InterviewPhase;
     provider?: string;
     modelId?: string;
+    jd?: string;
+    interviewer?: InterviewerProfile;
   }) => Promise<{ codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }>;
   onProviderChange: (providerId: string) => void;
   onModelChange: (modelId: string) => void;
@@ -165,6 +168,7 @@ interface PanelAppProps {
   onRequestAwsProfiles: () => void;
   onCancelHint: () => void;
   onRequestJDAnalysis: (jdText: string, provider?: string, modelId?: string, awsProfile?: string, lcQuestionCount?: number, interviewQuestionCount?: number) => Promise<JDAnalysisResult>;
+  onRequestInterviewerParse: (linkedInText: string, provider?: string, modelId?: string, awsProfile?: string) => Promise<InterviewerProfile>;
 }
 
 export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp(
@@ -179,6 +183,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     onRequestAwsProfiles,
     onCancelHint,
     onRequestJDAnalysis,
+    onRequestInterviewerParse,
   },
   ref
 ) {
@@ -280,6 +285,38 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
     saveThread(slug, state.thread, Date.now());
   }, [slug, state.thread, state.isStreaming]);
 
+  // Restore JD interview session on mount (survives tab switches / service worker restarts).
+  useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEY_JD_INTERVIEW_SESSION).then((stored) => {
+      const session = stored[STORAGE_KEY_JD_INTERVIEW_SESSION];
+      if (session?.interviewerProfile && session?.interviewThread?.length > 0) {
+        dispatch({ type: "jdInterviewSessionRestored", session });
+      }
+    });
+  }, []);
+
+  // Persist JD interview session whenever it changes.
+  useEffect(() => {
+    if (state.interviewerProfile && state.interviewThread.length > 0) {
+      chrome.storage.local.set({
+        [STORAGE_KEY_JD_INTERVIEW_SESSION]: {
+          interviewThread: state.interviewThread,
+          interviewPhase: state.interviewPhase,
+          interviewerProfile: state.interviewerProfile,
+          jdText: state.jdText,
+          linkedInText: state.linkedInText,
+        },
+      });
+    }
+  }, [state.interviewThread, state.interviewPhase, state.interviewerProfile, state.jdText]);
+
+  // Clear persisted session when interviewer is cleared.
+  useEffect(() => {
+    if (!state.interviewerProfile) {
+      chrome.storage.local.remove([STORAGE_KEY_JD_INTERVIEW_SESSION, STORAGE_KEY_JD_INTERVIEW_HISTORY]);
+    }
+  }, [state.interviewerProfile]);
+
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
@@ -374,6 +411,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
   };
 
   const submitInterviewTurn = async (userQuestion: string | undefined, phase: InterviewPhase) => {
+    const jdActive = !!state.jdText.trim() && !!state.interviewerProfile;
     const { codeCaptureIncomplete, codeCaptureFailureReason } = await onRequestInterviewTurn({
       userQuestion,
       interviewLevel: state.interviewLevel,
@@ -381,6 +419,8 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       interviewPhase: phase,
       provider: state.selectedProviderId || undefined,
       modelId: state.selectedModelId || undefined,
+      jd: jdActive ? state.jdText.trim() : undefined,
+      interviewer: jdActive ? state.interviewerProfile! : undefined,
     });
     dispatch({
       type: "interviewTurnRequested",
@@ -389,6 +429,22 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
       codeCaptureIncomplete,
       codeCaptureFailureReason,
     });
+  };
+
+  const handleParseInterviewer = async () => {
+    const text = state.linkedInText.trim();
+    if (!text) return;
+    dispatch({ type: "interviewerParseStarted" });
+    try {
+      const profile = await onRequestInterviewerParse(
+        text,
+        state.selectedProviderId || undefined,
+        state.selectedModelId || undefined
+      );
+      dispatch({ type: "interviewerParsed", profile });
+    } catch (err: any) {
+      dispatch({ type: "interviewerParseErrored", message: err?.message ?? "Parse failed" });
+    }
   };
 
   const handleStartInterview = () => submitInterviewTurn(undefined, "opening");
@@ -406,6 +462,11 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
 
   const handleEndInterview = () => {
     submitInterviewTurn("I'd like to end the interview here — please give me my final evaluation.", "grading");
+  };
+
+  const handleNewInterview = () => {
+    chrome.storage.local.remove(STORAGE_KEY_JD_INTERVIEW_SESSION);
+    dispatch({ type: "interviewReset" });
   };
 
   const effectiveProviderId = state.selectedProviderId || state.serverConfig?.defaultProvider || "";
@@ -631,7 +692,13 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
               </div>
             )}
 
-            <div className="problem-title">{state.problem ? state.problem.title : "Loading problem..."}</div>
+            <div className="problem-title">
+              {state.problem
+                ? state.problem.title
+                : state.interviewerProfile
+                ? `Interview with ${state.interviewerProfile.name}`
+                : "Loading problem..."}
+            </div>
 
             {patternTags.length > 0 && (
               <div className="pattern-tags">
@@ -675,6 +742,127 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                     ))}
                   </select>
                 </label>
+
+                {state.interviewThread.length === 0 && (
+                  <div className="jd-setup-section">
+                    <button
+                      type="button"
+                      className="jd-setup-toggle"
+                      onClick={() => dispatch({ type: "jdInterviewSetupToggled" })}
+                    >
+                      <span>{state.jdInterviewSetupOpen ? "▾" : "▸"}</span>
+                      {state.interviewerProfile
+                        ? `Interviewer: ${state.interviewerProfile.name}`
+                        : "JD Interview Setup"}
+                      {(state.jdText.trim() || state.interviewerProfile) && (
+                        <span className="jd-setup-badge">●</span>
+                      )}
+                    </button>
+
+                    {state.jdInterviewSetupOpen && (
+                      <div className="jd-setup-body">
+                        <label className="jd-setup-label">
+                          Job Description
+                          <textarea
+                            className="jd-setup-textarea"
+                            placeholder="Paste the job description here..."
+                            value={state.jdText}
+                            onChange={(e) => dispatch({ type: "jdTextChanged", text: e.target.value })}
+                            rows={4}
+                          />
+                        </label>
+
+                        {!state.interviewerProfile ? (
+                          <>
+                            <label className="jd-setup-label">
+                              Interviewer LinkedIn Profile
+                              <textarea
+                                className="jd-setup-textarea"
+                                placeholder="Paste LinkedIn experience / About section here..."
+                                value={state.linkedInText}
+                                onChange={(e) => dispatch({ type: "linkedInTextChanged", text: e.target.value })}
+                                rows={4}
+                              />
+                            </label>
+                            {state.interviewerParseError && (
+                              <div className="jd-setup-error">{state.interviewerParseError}</div>
+                            )}
+                            <button
+                              type="button"
+                              className="jd-setup-parse-btn"
+                              onClick={handleParseInterviewer}
+                              disabled={state.isParsingInterviewer || !state.linkedInText.trim()}
+                            >
+                              {state.isParsingInterviewer ? "Parsing..." : "Parse interviewer"}
+                            </button>
+                          </>
+                        ) : (
+                          <div className="interviewer-card">
+                            <div className="interviewer-card-header">
+                              <span className="interviewer-card-title">Interviewer</span>
+                              <button
+                                type="button"
+                                className="icon-button"
+                                onClick={() => dispatch({ type: "interviewerProfileCleared" })}
+                                title="Clear interviewer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <label className="jd-setup-label">
+                              Name
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.name}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { name: e.target.value } })}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Title
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.title}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { title: e.target.value } })}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Company
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.company}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { company: e.target.value } })}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Technical areas
+                              <input
+                                type="text"
+                                className="jd-setup-input"
+                                value={state.interviewerProfile.technicalAreas.join(", ")}
+                                onChange={(e) => {
+                                  const areas = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+                                  dispatch({ type: "interviewerProfileEdited", patch: { technicalAreas: areas } });
+                                }}
+                              />
+                            </label>
+                            <label className="jd-setup-label">
+                              Inferred style
+                              <textarea
+                                className="jd-setup-textarea"
+                                value={state.interviewerProfile.inferredStyle}
+                                onChange={(e) => dispatch({ type: "interviewerProfileEdited", patch: { inferredStyle: e.target.value } })}
+                                rows={3}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -755,7 +943,11 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
             {state.interviewMode ? (
               state.interviewThread.length === 0 ? (
                 <div className="panel-controls-row">
-                  <button className="primary-btn" onClick={handleStartInterview} disabled={state.isInterviewStreaming || !state.problem}>
+                  <button
+                    className="primary-btn"
+                    onClick={handleStartInterview}
+                    disabled={state.isInterviewStreaming || (!state.problem && !(state.jdText.trim() && state.interviewerProfile))}
+                  >
                     {state.isInterviewStreaming ? "Starting..." : "Start interview"}
                   </button>
                 </div>
@@ -770,7 +962,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        if (!state.isInterviewStreaming && state.problem) handleSendInterviewMessage();
+                        if (!state.isInterviewStreaming && (state.problem || (state.jdText.trim() && state.interviewerProfile))) handleSendInterviewMessage();
                       }
                     }}
                   />
@@ -781,7 +973,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                           type="button"
                           className="composer-action-btn"
                           onClick={handleDoneCoding}
-                          disabled={state.isInterviewStreaming || !state.problem}
+                          disabled={state.isInterviewStreaming || (!state.problem && !(state.jdText.trim() && state.interviewerProfile))}
                           title="Tell the interviewer you're done coding"
                         >
                           Done coding
@@ -791,10 +983,19 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                         type="button"
                         className="composer-action-btn composer-action-danger"
                         onClick={handleEndInterview}
-                        disabled={state.isInterviewStreaming || !state.problem}
+                        disabled={state.isInterviewStreaming || (!state.problem && !(state.jdText.trim() && state.interviewerProfile))}
                         title="End and get final evaluation"
                       >
                         End &amp; grade
+                      </button>
+                      <button
+                        type="button"
+                        className="composer-action-btn"
+                        onClick={handleNewInterview}
+                        disabled={state.isInterviewStreaming}
+                        title="Clear current interview and start fresh"
+                      >
+                        New interview
                       </button>
                     </div>
                     {state.isInterviewStreaming ? (
@@ -806,7 +1007,7 @@ export const PanelApp = forwardRef<PanelHandle, PanelAppProps>(function PanelApp
                         type="button"
                         className="composer-send-btn"
                         onClick={handleSendInterviewMessage}
-                        disabled={!state.problem}
+                        disabled={!state.problem && !(state.jdText.trim() && state.interviewerProfile)}
                         title="Send"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

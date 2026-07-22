@@ -2,6 +2,7 @@ import { useReducer } from "react";
 import type {
   GuidanceChunk,
   HintLevel,
+  InterviewerProfile,
   InterviewLevel,
   InterviewPhase,
   LLMProviderId,
@@ -55,6 +56,13 @@ export interface PanelState {
   interviewLevel: InterviewLevel;
   pressureLevel: PressureLevel;
   isInterviewStreaming: boolean;
+  /** JD-based interview setup */
+  jdInterviewSetupOpen: boolean;
+  jdText: string;
+  linkedInText: string;
+  interviewerProfile: InterviewerProfile | null;
+  isParsingInterviewer: boolean;
+  interviewerParseError: string | null;
 }
 
 type PanelAction =
@@ -87,7 +95,18 @@ type PanelAction =
   | { type: "interviewTurnRequested"; question?: string; phase: InterviewPhase; codeCaptureIncomplete: boolean; codeCaptureFailureReason?: string }
   | { type: "interviewChunk"; chunk: GuidanceChunk }
   | { type: "interviewConnectionError"; message: string }
-  | { type: "interviewCancelled" };
+  | { type: "interviewCancelled" }
+  | { type: "jdInterviewSetupToggled" }
+  | { type: "jdTextChanged"; text: string }
+  | { type: "linkedInTextChanged"; text: string }
+  | { type: "interviewerParseStarted" }
+  | { type: "interviewerParsed"; profile: InterviewerProfile }
+  | { type: "interviewerParseErrored"; message: string }
+  | { type: "interviewerProfileEdited"; patch: Partial<InterviewerProfile> }
+  | { type: "interviewerProfileCleared" }
+  | { type: "jdInterviewSessionRestored"; session: { interviewThread: PanelState["interviewThread"]; interviewPhase: PanelState["interviewPhase"]; interviewerProfile: NonNullable<PanelState["interviewerProfile"]>; jdText: string; linkedInText: string } }
+  | { type: "interviewReset" }
+;
 
 const initialState: PanelState = {
   problem: null,
@@ -110,6 +129,12 @@ const initialState: PanelState = {
   interviewLevel: "mid",
   pressureLevel: "standard",
   isInterviewStreaming: false,
+  jdInterviewSetupOpen: false,
+  jdText: "",
+  linkedInText: "",
+  interviewerProfile: null,
+  isParsingInterviewer: false,
+  interviewerParseError: null,
 };
 
 function updateLastEntry<T>(thread: T[], patch: Partial<T>): T[] {
@@ -120,20 +145,25 @@ function updateLastEntry<T>(thread: T[], patch: Partial<T>): T[] {
 
 function reducer(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
-    case "problemLoaded":
-      // A different problem loaded — the thread belongs to the old one.
+    case "problemLoaded": {
+      // A different problem loaded — the learn thread belongs to the old one.
       if (action.problem?.slug !== state.problem?.slug) {
+        // JD interview is persona-driven and spans the whole session — don't
+        // reset it when the user navigates to a different problem/tab.
+        const jdInterviewActive = !!state.interviewerProfile && state.interviewThread.length > 0;
         return {
           ...state,
           problem: action.problem,
           thread: [],
           showAcceptedReviewOffer: false,
           submissionError: null,
-          interviewThread: [],
-          interviewPhase: "opening",
+          interviewMode: jdInterviewActive ? true : state.interviewMode,
+          interviewThread: jdInterviewActive ? state.interviewThread : [],
+          interviewPhase: jdInterviewActive ? state.interviewPhase : "opening",
         };
       }
       return { ...state, problem: action.problem };
+    }
     case "hintRequested": {
       const entry: ThreadEntry = {
         question: action.questionOverride ?? state.questionText.trim(),
@@ -267,6 +297,35 @@ function reducer(state: PanelState, action: PanelAction): PanelState {
       };
     case "interviewCancelled":
       return { ...state, isInterviewStreaming: false, interviewThread: state.interviewThread.slice(0, -1) };
+    case "jdInterviewSetupToggled":
+      return { ...state, jdInterviewSetupOpen: !state.jdInterviewSetupOpen };
+    case "jdTextChanged":
+      return { ...state, jdText: action.text };
+    case "linkedInTextChanged":
+      return { ...state, linkedInText: action.text };
+    case "interviewerParseStarted":
+      return { ...state, isParsingInterviewer: true, interviewerParseError: null };
+    case "interviewerParsed":
+      return { ...state, isParsingInterviewer: false, interviewerProfile: action.profile, interviewerParseError: null };
+    case "interviewerParseErrored":
+      return { ...state, isParsingInterviewer: false, interviewerParseError: action.message };
+    case "interviewerProfileEdited":
+      if (!state.interviewerProfile) return state;
+      return { ...state, interviewerProfile: { ...state.interviewerProfile, ...action.patch } };
+    case "interviewerProfileCleared":
+      return { ...state, interviewerProfile: null, linkedInText: "", interviewThread: [], interviewPhase: "opening", interviewMode: false };
+    case "jdInterviewSessionRestored":
+      return {
+        ...state,
+        interviewMode: true,
+        interviewThread: action.session.interviewThread,
+        interviewPhase: action.session.interviewPhase,
+        interviewerProfile: action.session.interviewerProfile,
+        jdText: action.session.jdText,
+        linkedInText: action.session.linkedInText,
+      };
+    case "interviewReset":
+      return { ...state, interviewThread: [], interviewPhase: "opening", isInterviewStreaming: false };
     default:
       return state;
   }

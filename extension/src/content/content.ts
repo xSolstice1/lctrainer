@@ -1,8 +1,8 @@
-import type { BackgroundToContentMessage, ConversationTurn, JDAnalysisResult, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
+import type { BackgroundToContentMessage, ConversationTurn, InterviewerProfile, JDAnalysisResult, ProblemMetadata, SubmissionError } from "@lctrainer/shared";
 import { connectToBackground } from "../lib/messaging.js";
 import { getSiteAdapter, type SiteAdapter } from "./sites/index.js";
 import { mountPanel } from "../panel/mount.js";
-import { STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
+import { STORAGE_KEY_JD_INTERVIEW_HISTORY, STORAGE_KEY_MODEL_ID, STORAGE_KEY_PROVIDER } from "../lib/constants.js";
 import { recordAccepted, recordHintUsed, recordProblemSeen } from "../lib/solveHistory.js";
 
 const PING_INTERVAL_MS = 20_000;
@@ -21,6 +21,7 @@ async function main() {
   let port: chrome.runtime.Port;
   let activeRequestId: string | null = null;
   const pendingJDRequests = new Map<string, { resolve: (r: JDAnalysisResult) => void; reject: (e: Error) => void }>();
+  const pendingInterviewerParseRequests = new Map<string, { resolve: (r: InterviewerProfile) => void; reject: (e: Error) => void }>();
   let history: ConversationTurn[] = [];
   let pendingAssistantText = "";
   let lastHintCode: string | null = null;
@@ -29,11 +30,18 @@ async function main() {
   // learn-mode thread above — it's a different persona/context entirely.
   let interviewHistory: ConversationTurn[] = [];
   let pendingInterviewText = "";
+  // True once a JD-based interview has started — prevents interviewHistory from
+  // being cleared when the user navigates to a different problem/tab.
+  let jdInterviewActive = false;
   // Only one request is ever in flight (shared activeRequestId below) — this
   // says which history/pending-buffer the in-flight response belongs to.
   let activeRequestMode: "learn" | "interview" = "learn";
 
-  const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID]);
+  const stored = await chrome.storage.local.get([STORAGE_KEY_PROVIDER, STORAGE_KEY_MODEL_ID, STORAGE_KEY_JD_INTERVIEW_HISTORY]);
+  if (stored[STORAGE_KEY_JD_INTERVIEW_HISTORY]?.length > 0) {
+    interviewHistory = stored[STORAGE_KEY_JD_INTERVIEW_HISTORY];
+    jdInterviewActive = true;
+  }
 
   const panel = mountPanel({
     initialProviderId: stored[STORAGE_KEY_PROVIDER] ?? "",
@@ -86,7 +94,8 @@ async function main() {
       return { codeCaptureIncomplete: code.possiblyIncomplete, codeCaptureFailureReason };
     },
 
-    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId }) => {
+    onRequestInterviewTurn: async ({ userQuestion, interviewLevel, pressureLevel, interviewPhase, provider, modelId, jd, interviewer }) => {
+      if (jd && interviewer) jdInterviewActive = true;
       let codeCaptureFailureReason: string | undefined;
       const code = await site.getCurrentCode().catch((err: Error) => {
         codeCaptureFailureReason = err.message.startsWith("Timed out")
@@ -95,7 +104,16 @@ async function main() {
         return { code: "", language: "unknown", possiblyIncomplete: true };
       });
 
-      if (currentProblem) {
+      const effectiveProblem = currentProblem ?? (jd && interviewer ? {
+        slug: "jd-interview",
+        title: "JD Interview",
+        difficulty: "Medium" as const,
+        tags: [],
+        statementHtml: "",
+        url: "",
+      } : null);
+
+      if (effectiveProblem) {
         const requestId = crypto.randomUUID();
         activeRequestId = requestId;
         activeRequestMode = "interview";
@@ -105,7 +123,7 @@ async function main() {
           request: {
             sessionId,
             requestId,
-            problem: currentProblem,
+            problem: effectiveProblem,
             code: {
               language: code.language,
               code: code.code,
@@ -118,6 +136,8 @@ async function main() {
             interviewLevel,
             pressureLevel,
             interviewPhase,
+            jd,
+            interviewer,
             provider,
             modelId,
           },
@@ -160,6 +180,14 @@ async function main() {
         port.postMessage({ type: "requestJDAnalysis", requestId, jdText, provider, modelId, awsProfile, lcQuestionCount, interviewQuestionCount });
       });
     },
+
+    onRequestInterviewerParse: (linkedInText, provider, modelId, awsProfile) => {
+      return new Promise<InterviewerProfile>((resolve, reject) => {
+        const requestId = crypto.randomUUID();
+        pendingInterviewerParseRequests.set(requestId, { resolve, reject });
+        port.postMessage({ type: "requestInterviewerParse", requestId, linkedInText, provider, modelId, awsProfile });
+      });
+    },
   });
 
   function handleMessage(message: BackgroundToContentMessage) {
@@ -175,6 +203,9 @@ async function main() {
         if (isInterview) {
           if (pendingInterviewText) {
             interviewHistory = [...interviewHistory, { role: "assistant", content: pendingInterviewText }];
+            if (jdInterviewActive) {
+              chrome.storage.local.set({ [STORAGE_KEY_JD_INTERVIEW_HISTORY]: interviewHistory });
+            }
           }
         } else if (pendingAssistantText) {
           const turn: ConversationTurn = { role: "assistant", content: pendingAssistantText };
@@ -227,6 +258,18 @@ async function main() {
         pendingJDRequests.delete(message.requestId);
         pending.reject(new Error(message.message));
       }
+    } else if (message.type === "interviewerParseResult") {
+      const pending = pendingInterviewerParseRequests.get(message.requestId);
+      if (pending) {
+        pendingInterviewerParseRequests.delete(message.requestId);
+        pending.resolve(message.profile);
+      }
+    } else if (message.type === "interviewerParseError") {
+      const pending = pendingInterviewerParseRequests.get(message.requestId);
+      if (pending) {
+        pendingInterviewerParseRequests.delete(message.requestId);
+        pending.reject(new Error(message.message));
+      }
     }
     // "pong" needs no handling — receiving it just confirms the port is alive.
   }
@@ -248,6 +291,10 @@ async function main() {
         pending.reject(new Error("Connection lost — please try again."));
       }
       pendingJDRequests.clear();
+      for (const pending of pendingInterviewerParseRequests.values()) {
+        pending.reject(new Error("Connection lost — please try again."));
+      }
+      pendingInterviewerParseRequests.clear();
       connect();
     });
   }
@@ -271,7 +318,7 @@ async function main() {
     if (problem?.slug !== currentProblem?.slug) {
       history = [];
       lastHintCode = null;
-      interviewHistory = [];
+      if (!jdInterviewActive) interviewHistory = [];
     }
     currentProblem = problem;
     // Write solve-history before notifying the panel — the Solved/Attempted

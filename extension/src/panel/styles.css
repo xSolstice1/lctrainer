@@ -2103,3 +2103,145 @@
   flex-direction: column;
   gap: 6px;
 }
+
+/* JD Interview Setup */
+.jd-setup-section {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+}
+
+.jd-setup-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.jd-setup-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated));
+}
+
+.jd-setup-badge {
+  color: var(--accent);
+  font-size: 8px;
+  margin-left: auto;
+}
+
+.jd-setup-body {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.jd-setup-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.jd-setup-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 6px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.jd-setup-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.jd-setup-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.jd-setup-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.jd-setup-parse-btn {
+  align-self: flex-start;
+  padding: 5px 10px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.jd-setup-parse-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.jd-setup-error {
+  font-size: 11px;
+  color: var(--danger, #e05252);
+  padding: 4px 0;
+}
+
+.interviewer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 5px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+}
+
+.interviewer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.interviewer-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
