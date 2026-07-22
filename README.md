@@ -98,3 +98,33 @@ For Bedrock specifically, the options page also fetches the live list of Claude-
 - No accounts, persistence, rate limiting, or production deployment — personal local tool only.
 - Bedrock support is scoped to Anthropic Claude models only (messages API payload shape).
 - Local provider quality depends entirely on the Ollama model chosen — small/quantized models (needed to fit weak hardware) will lag Claude/GPT-tier reasoning on Medium/Hard problems.
+
+## Known bugs
+
+- **`possiblyIncomplete` is backwards in HackerRank** (`extension/src/content/sites/hackerrank.ts`): `possiblyIncomplete: lines.length > 0` is always `true` when any code exists. Should be `lines.length === 0` or a minimum length threshold.
+- **Interviewer parse missing fence-strip** (`server/src/prompts/interviewerParsePrompt.ts`): `jdAnalysis.ts` strips markdown fences from LLM JSON output before parsing; the interviewer parse path skips this step and silently fails when the model wraps its response in ` ```json ` blocks.
+- **`AWS_PROFILE` global mutation race** (`server/src/providers/bedrock.ts`): `process.env.AWS_PROFILE = request.awsProfile` is process-global. Two concurrent Bedrock requests with different profiles will corrupt each other. Fix: pass the profile into a per-request credential provider chain instead of mutating the environment.
+- **Panel can be dragged off-screen**: no boundary clamping in the drag handler — the panel can be moved partially off-screen with no way to recover short of clearing `chrome.storage.local`.
+- **Thread cache loses cost estimates**: `estimatedCostUsd` is in-memory only. Restored threads always show `null` cost.
+
+## Roadmap / improvement ideas
+
+### UX
+
+| # | Idea | Why |
+|---|------|-----|
+| 1 | **Drag boundary clamping** | Panel can be dragged off-screen; add `Math.min/max` clamping in the drag handler |
+| 2 | **Streak + weak tags in sidebar** | `computeDayStreak` / `computeWeakTags` are computed but only shown on the Options page — users never see them during practice |
+| 3 | **Mock interview timer** | Visible elapsed time (and optional per-phase countdown) matches real interview conditions; trivial to add |
+| 4 | **Interview grade export** | "Copy as Markdown" or "Save to PDF" button on the grading verdict; useful for self-tracking over time |
+| 5 | **Code snapshot per thread entry** | Save `CodeSnapshot` alongside each `ThreadEntry` so you can review "what I wrote when I asked this" during problem history browsing |
+| 6 | **Keyboard shortcut overlay** | Alt+H and Alt+E are invisible; a `?` button or `Shift+?` hotkey listing all shortcuts would surface them |
+
+### Features
+
+| # | Idea | Why |
+|---|------|-----|
+| 7 | **Spaced repetition / review queue** | Solved tab tracks problems but has no "due for review" scheduling; even a simple Leitner-box (N days doubles on recall) differentiates this from plain bookmarking |
+| 8 | **OpenRouter model discovery** | OpenRouter exposes `/api/v1/models`; a live dropdown like Ollama already has would remove the manual model-ID input friction |
+| 9 | **Complexity history chart** | Weak-tag data is computed but not visualized; a sparkline in the Solved tab showing "hint rate by topic" would make the data actionable |
+| 10 | **"Compare to optimal" post-accept** | Post-accept banner only offers a hint; structural diff of the user's accepted code against a reference approach (highlighting what was missed) would be far more instructive |
